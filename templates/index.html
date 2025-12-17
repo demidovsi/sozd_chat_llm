@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat UI (ChatGPT-like)</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="History sidebar">
+      <div class="sidebar-top">
+        <button id="newChatBtn" class="btn btn-primary">+ New chat</button>
+          <!--
+          <select id="themeSelect" class="input">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+          -->
+      </div>
+
+      <div class="sidebar-search">
+        <input id="searchInput" class="input" placeholder="Search chats…" />
+      </div>
+
+      <div id="chatList" class="chat-list" role="list"
+        title="💡 Двойной клик по названию чата для редактирования"></div>
+
+      <div class="sidebar-bottom">
+        <div class="user-chip">
+          <div class="avatar">U</div>
+          <div class="user-meta">
+            <div class="user-name">You</div>
+            <div class="user-sub">Local demo</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="topbar">
+        <div class="title-wrap">
+          <div id="chatTitle" class="chat-title">New chat</div>
+          <div class="chat-subtitle">HTML demo UI</div>
+        </div>
+        <div class="topbar-actions">
+          <button id="themeToggle" class="btn btn-ghost" title="Toggle theme">
+            🌙
+          </button>
+          <button id="clearBtn" class="btn btn-ghost">Clear</button>
+          <button id="exportBtn" class="btn btn-ghost">Export</button>
+        </div>
+
+
+      </header>
+
+        <section class="messages-wrap" aria-label="Messages">
+          <div id="messages" class="messages"></div>
+
+          <div id="genOverlay" class="gen-overlay" aria-live="polite">
+            <div class="gen-card">
+              <div class="gen-spinner"></div>
+              <div class="gen-text">Generating response…</div>
+            </div>
+          </div>
+        </section>
+
+      <footer class="composer">
+        <form id="composerForm" class="composer-form" autocomplete="off">
+          <div class="composer-box">
+            <textarea
+              id="promptInput"
+              class="composer-input"
+              rows="1"
+              placeholder="Message…"
+            ></textarea>
+            <div class="composer-actions">
+              <button id="sendBtn" class="btn btn-primary" type="submit">Send</button>
+            </div>
+          </div>
+          <div class="composer-hint">
+            <span>Shift+Enter — новая строка</span>
+            <span class="dot">•</span>
+            <span>Enter — отправить</span>
+          </div>
+        </form>
+      </footer>
+    </main>
+  </div>
+
+
+  <!-- Markdown renderer (lightweight) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Optional: code highlighting -->
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/common.min.js"></script>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
