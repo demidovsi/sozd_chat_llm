@@ -4,4 +4,3 @@
 *.ims
 workspace/
 workspace.xml
-static/session.json

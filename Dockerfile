@@ -20,4 +20,4 @@ COPY . .
 EXPOSE 8080
 
 # ✅ Явно задаём команду запуска
-CMD ["python", "lib_web.py"]
+CMD ["python", "sozd_chat.py"]
