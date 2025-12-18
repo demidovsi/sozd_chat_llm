@@ -615,6 +615,7 @@ function renderMessages() {
       const content = document.createElement('div');
       content.className = 'content';
       content.innerHTML = renderMarkdownSafe(m.content);
+      makeLinksOpenInNewTab(content);   // ← вот это добавили
       collapsibleContent.appendChild(content);
     }
 
@@ -1303,6 +1304,33 @@ function formatDurationMs(ms) {
   return (ms / 1000).toFixed(2) + " s";
 }
 
+function linkify(text) {
+  if (!text) return text;
+
+  const urlRegex = /(https?:\/\/[^\s)]+)|((?<!\/)www\.[^\s)]+)/gi;
+
+  return text.replace(urlRegex, (rawUrl) => {
+    const url = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
+    return `<a href="${url}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="table-link">${rawUrl}</a>`;
+  });
+}
+
+function makeLinksOpenInNewTab(root) {
+  if (!root) return;
+  const links = root.querySelectorAll('a[href]');
+  links.forEach(a => {
+    const href = a.getAttribute('href') || '';
+    // Только для http/https — чтобы не трогать якоря, mailto и т.п.
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener noreferrer');
+      a.classList.add('table-link'); // чтобы был такой же стиль, как в таблице
+    }
+  });
+}
 
   /** ---------- Init bindings ---------- **/
     scrollToEndBtn?.addEventListener("click", () => {
