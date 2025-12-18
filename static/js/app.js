@@ -14,13 +14,14 @@
 const config = {
   kirill: "wqzDi8OVw43DjcOOwoTCncKZwpM=",
   URL: "http://159.223.0.234:5000/",
-  URL_rest: "http://159.223.0.234:5050/"
-//  URL_rest: "http://localhost:5050/"
+//  URL_rest: "http://159.223.0.234:5050/"
+//  URL_rest: "https://159.223.0.234:5051/"
+  URL_rest: "http://localhost:5050/"
 };
 
 const LS_KEY = "chatui_demo_v1";
 const THEME_KEY = "chatui_theme";
-const MAX_TABLE_COLS = 8; // ← N (поменяй как хочешь)
+const MAX_TABLE_COLS = 10; // ← N (поменяй как хочешь)
 
 const el = (id) => document.getElementById(id);
 
@@ -236,6 +237,15 @@ function initTheme(themeSelect, themeToggleBtn) {
 async function fetchSqlText(userText, { signal } = {}) {
   const url = config.URL_rest + "sql/text";
 
+  // Создаем собственный AbortController с timeout 60 секунд
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 секунд
+
+  // Если передан внешний signal, слушаем его тоже
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+
   const requestBody = {
     user_conditions: userText,
     model: "gemini-2.5-pro",
@@ -244,19 +254,29 @@ async function fetchSqlText(userText, { signal } = {}) {
     default_order: "law_reg_date desc"
   };
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(requestBody),
-    signal
-  });
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`HTTP ${res.status}: ${text}`);
+    clearTimeout(timeoutId); // Очищаем timeout если запрос успешен
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HTTP ${res.status}: ${text}`);
+    }
+
+    return await res.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout after 60 seconds');
+    }
+    throw error;
   }
-
-  return await res.json();
 }
 
 async function executeSqlViaApi({ sqlText, params, token }, { signal } = {}) {
@@ -299,6 +319,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const newChatBtn = el("newChatBtn");
   const clearBtn = el("clearBtn");
   const exportBtn = el("exportBtn");
+  const toggleAllBtn = el("toggleAllBtn");
+  let allCollapsed = false; // Глобальное состояние: false = развернуто, true = свернуто
 
   const composerForm = el("composerForm");
   const promptInput = el("promptInput");
@@ -480,204 +502,320 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function renderMessages() {
-    const chat = getActiveChat();
-    chatTitleEl.textContent = chat?.title || "Chat";
+function renderMessages() {
+  const chat = getActiveChat();
+  chatTitleEl.textContent = chat?.title || "Chat";
 
-    messagesEl.innerHTML = "";
+  messagesEl.innerHTML = "";
 
-    for (const m of chat.messages) {
-      const row = document.createElement("div");
-      row.className = "msg " + (m.role === "user" ? "user" : "assistant");
-      if (m.error) row.classList.add("error");
+  for (const [index, m] of chat.messages.entries()) {
+    const row = document.createElement("div");
+    row.className = "msg " + (m.role === "user" ? "user" : "assistant");
+    if (m.error) row.classList.add("error");
 
-      const role = document.createElement("div");
-      role.className = "role";
-      role.textContent = m.role === "user" ? "U" : "A";
+    const role = document.createElement("div");
+    role.className = "role";
+    role.textContent = m.role === "user" ? "U" : "A";
 
-      const bubble = document.createElement("div");
-      bubble.className = "bubble";
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
 
-      const isTableMsg = (m.role === "assistant" && m.table && Array.isArray(m.table.rows));
+    const content = document.createElement("div");
+    content.className = "content";
 
-      if (!isTableMsg) {
-        const copyBtn = document.createElement("button");
-        copyBtn.className = "copy-btn";
-        copyBtn.type = "button";
-        copyBtn.textContent = "Copy";
-        copyBtn.addEventListener("click", async () => {
-          const ok = await copyToClipboard(m.content);
-          copyBtn.textContent = ok ? "Copied" : "Failed";
-          setTimeout(() => (copyBtn.textContent = "Copy"), 900);
-        });
-        bubble.appendChild(copyBtn);
-      }
+    const isTableMsg = (m.role === "assistant" && m.table && Array.isArray(m.table.rows));
+    const isErrorMsg = m.content.startsWith("❌");
 
-      const content = document.createElement("div");
-      content.className = "content";
-      content.innerHTML = renderMarkdownSafe(m.content);
-      bubble.appendChild(content);
+    let textContent;
+    let collapsibleContent = null;
+
+    // Для сообщений с таблицей или с информацией о тексте создаем два блока
+    if (isTableMsg || (!isTableMsg && index > 0)) {
+      // Постоянно видимый блок с информацией
+      const infoBlock = document.createElement("div");
+      infoBlock.className = "table-info";
 
       if (isTableMsg) {
-        const wrap = document.createElement("div");
-        wrap.className = "tbl-wrap";
-
-        const head = document.createElement("div");
-        head.className = "tbl-head";
-
-        const left = document.createElement("div");
-        left.textContent = `Rows: ${m.table.rows.length}`;
-
-        const actions = document.createElement("div");
-        actions.className = "tbl-actions";
-
-        const exportCsvBtn = document.createElement("button");
-        exportCsvBtn.type = "button";
-        exportCsvBtn.className = "sql-btn";
-        exportCsvBtn.textContent = "Export CSV";
-        exportCsvBtn.disabled = !m.csv;
-
-        exportCsvBtn.addEventListener("click", () => {
-          const csv = m.csv || "";
-          const name = `result_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
-          downloadTextFile(name, csv, "text/csv;charset=utf-8");
-        });
-
-        actions.appendChild(exportCsvBtn);
-        head.appendChild(left);
-        head.appendChild(actions);
-
-        const scroller = document.createElement("div");
-        scroller.className = "tbl-scroller";
-
-        const table = document.createElement("table");
-        table.className = "tbl";
-
-        const thead = document.createElement("thead");
-        const trh = document.createElement("tr");
-        for (const col of m.table.columns) {
-          const th = document.createElement("th");
-          th.textContent = col;
-          trh.appendChild(th);
-        }
-        thead.appendChild(trh);
-
-        const tbody = document.createElement("tbody");
-        for (const rowObj of m.table.rows) {
-          const tr = document.createElement("tr");
-          for (const col of m.table.columns) {
-            const td = document.createElement("td");
-            td.textContent = escapeCell(rowObj?.[col], col, rowObj);
-            tr.appendChild(td);
-          }
-          tbody.appendChild(tr);
-        }
-
-        table.appendChild(thead);
-        table.appendChild(tbody);
-        scroller.appendChild(table);
-
-        wrap.appendChild(head);
-        wrap.appendChild(scroller);
-        bubble.appendChild(wrap);
+        infoBlock.innerHTML = renderMarkdownSafe(m.content);
+      } else if (isErrorMsg) {
+        // Для ошибок показываем сообщение об ошибке
+        infoBlock.innerHTML = renderMarkdownSafe(m.content);
+        infoBlock.style.background = "rgba(239, 68, 68, 0.1)";
+        infoBlock.style.borderLeft = "3px solid #ef4444";
+        infoBlock.style.paddingLeft = "12px";
+        infoBlock.style.color = "#ef4444";
+      } else {
+        // Для обычных текстов показываем количество символов
+        const charCount = m.content.length;
+        infoBlock.innerHTML = `<span style="font-size: 0.9em; color: var(--muted);">Текст: ${charCount} символов</span>`;
       }
 
-      if (m.role === "assistant" && m.sql) {
-        const wrap = document.createElement("div");
-        wrap.className = "sql-wrap";
-        if (m.sqlOpen) wrap.classList.add("open");
+      content.appendChild(infoBlock);
 
-        const head = document.createElement("div");
-        head.className = "sql-head";
+      // Сворачиваемый блок
+      collapsibleContent = document.createElement("div");
+      collapsibleContent.className = "collapsible-content";
 
-        const left = document.createElement("div");
-        left.textContent = "sql_text";
-
-        const actions = document.createElement("div");
-        actions.className = "sql-actions";
-
-        const toggleBtn = document.createElement("button");
-        toggleBtn.type = "button";
-        toggleBtn.className = "sql-btn";
-        toggleBtn.textContent = m.sqlOpen ? "Hide SQL" : "Show SQL";
-        toggleBtn.addEventListener("click", () => {
-          m.sqlOpen = !m.sqlOpen;
-          saveState();
-          // Переключаем класс только на текущем wrap элементе
-          wrap.classList.toggle("open", m.sqlOpen);
-          toggleBtn.textContent = m.sqlOpen ? "Hide SQL" : "Show SQL";
-          //renderMessages();
-        });
-
-        const copySqlBtn = document.createElement("button");
-        copySqlBtn.type = "button";
-        copySqlBtn.className = "sql-btn";
-        copySqlBtn.textContent = "Copy SQL";
-        copySqlBtn.addEventListener("click", async () => {
-          const textToCopy = buildSqlWithParams(m);
-          const ok = await copyToClipboard(textToCopy);
-          copySqlBtn.textContent = ok ? "Copied" : "Failed";
-          setTimeout(() => (copySqlBtn.textContent = "Copy SQL"), 900);
-        });
-
-        actions.appendChild(toggleBtn);
-        actions.appendChild(copySqlBtn);
-
-        if (hasParams(m.params)) {
-          const copyParamsBtn = document.createElement("button");
-          copyParamsBtn.type = "button";
-          copyParamsBtn.className = "sql-btn";
-          copyParamsBtn.textContent = "Copy params";
-          copyParamsBtn.addEventListener("click", async () => {
-            const ok = await copyToClipboard(JSON.stringify(m.params, null, 2));
-            copyParamsBtn.textContent = ok ? "Copied" : "Failed";
-            setTimeout(() => (copyParamsBtn.textContent = "Copy params"), 900);
-          });
-          actions.appendChild(copyParamsBtn);
-        }
-
-        head.appendChild(left);
-        head.appendChild(actions);
-
-        const body = document.createElement("div");
-        body.className = "sql-body";
-
-        const pre = document.createElement("pre");
-        pre.className = "sql-pre";
-
-        const code = document.createElement("code");
-        code.className = "language-sql";
-        code.textContent = buildSqlWithParams(m);
-
-        pre.appendChild(code);
-        body.appendChild(pre);
-
-        wrap.appendChild(head);
-        wrap.appendChild(body);
-
-        bubble.appendChild(wrap);
+      if (!isTableMsg && !isErrorMsg) {
+        // Для обычных текстов помещаем содержимое в сворачиваемый блок
+        collapsibleContent.innerHTML = renderMarkdownSafe(m.content);
+      } else if (isErrorMsg) {
+        // Для ошибок сворачиваемый блок остается пустым
+        collapsibleContent.style.display = "none";
       }
 
-      row.appendChild(role);
-      row.appendChild(bubble);
-      messagesEl.appendChild(row);
+      textContent = collapsibleContent;
+    } else {
+      // Для первого сообщения - один блок с контентом
+      textContent = document.createElement("div");
+      textContent.innerHTML = renderMarkdownSafe(m.content);
     }
 
-    if (window.hljs) {
-      messagesEl.querySelectorAll("pre code").forEach((block) => {
-        try { window.hljs.highlightElement(block); } catch {}
+    // Кнопка сворачивания/разворачивания сообщения
+    if (index > 0) {
+      const toggleBtn = document.createElement("button");
+      toggleBtn.className = "toggle-msg-btn";
+      toggleBtn.type = "button";
+      toggleBtn.textContent = "−";
+      toggleBtn.title = "Свернуть сообщение";
+
+      toggleBtn.addEventListener("click", () => {
+        const isCollapsed = textContent.style.display === "none";
+
+        // Скрываем/показываем основной текстовый контент (только если не ошибка без дополнительного контента)
+        if (!(isErrorMsg && !isTableMsg && !m.sql)) {
+          textContent.style.display = isCollapsed ? "" : "none";
+        }
+
+        // Скрываем/показываем таблицу, если она есть
+        const tblWrap = bubble.querySelector('.tbl-wrap');
+        if (tblWrap) {
+          tblWrap.style.display = isCollapsed ? "" : "none";
+        }
+
+        // Скрываем/показываем SQL блок, если он есть
+        const sqlWrap = bubble.querySelector('.sql-wrap');
+        if (sqlWrap) {
+          sqlWrap.style.display = isCollapsed ? "" : "none";
+        }
+
+        // Обновляем кнопку
+        toggleBtn.textContent = isCollapsed ? "−" : "+";
+        toggleBtn.title = isCollapsed ? "Свернуть сообщение" : "Развернуть сообщение";
       });
+      content.appendChild(toggleBtn);
     }
 
-    scrollToBottom();
+    // Кнопка удаления сообщения (кроме первого приветственного)
+    if (index > 0) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-msg-btn";
+      deleteBtn.type = "button";
+      deleteBtn.textContent = "✕";
+      deleteBtn.title = "Удалить сообщение";
+      deleteBtn.addEventListener("click", () => {
+        deleteMessage(chat.id, m.id);
+      });
+      content.appendChild(deleteBtn);
+    }
+
+    // Кнопка копирования (для обычных сообщений)
+    if (!isTableMsg) {
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "copy-btn";
+      copyBtn.type = "button";
+      copyBtn.textContent = "Copy";
+      copyBtn.addEventListener("click", async () => {
+        const ok = await copyToClipboard(m.content);
+        copyBtn.textContent = ok ? "Copied" : "Failed";
+        setTimeout(() => (copyBtn.textContent = "Copy"), 900);
+      });
+      content.appendChild(copyBtn);
+    }
+
+    // Добавляем textContent в content
+    if (!isTableMsg || collapsibleContent) {
+      content.appendChild(textContent);
+    }
+
+    bubble.appendChild(content);
+
+    // Остальной код для таблиц и SQL остается без изменений...
+    if (isTableMsg) {
+      const { columns, rows } = m.table;
+
+      const tblWrap = document.createElement("div");
+      tblWrap.className = "tbl-wrap";
+
+      const tblHead = document.createElement("div");
+      tblHead.className = "tbl-head";
+      tblHead.innerHTML = `
+        <span>Table details (${rows.length} rows, ${columns.length} cols)</span>
+        <button class="sql-btn" onclick="copyTableAsCsv(this)">Copy CSV</button>
+      `;
+
+      const tblScroller = document.createElement("div");
+      tblScroller.className = "tbl-scroller";
+
+      const table = document.createElement("table");
+      table.className = "tbl";
+
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+      columns.forEach(col => {
+        const th = document.createElement("th");
+        th.textContent = col;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      rows.forEach(row => {
+        const tr = document.createElement("tr");
+        columns.forEach(col => {
+          const td = document.createElement("td");
+          const value = row[col];
+          td.textContent = value === null ? "null" : String(value);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+
+      tblScroller.appendChild(table);
+      tblWrap.appendChild(tblHead);
+      tblWrap.appendChild(tblScroller);
+      bubble.appendChild(tblWrap);
+
+      tblHead.querySelector('.sql-btn').csvData = m.csv;
+    }
+
+    // SQL секция остается без изменений...
+    if (m.sql) {
+      const sqlWrap = document.createElement("div");
+      sqlWrap.className = "sql-wrap";
+
+      const sqlHead = document.createElement("div");
+      sqlHead.className = "sql-head";
+
+      const sqlTitle = document.createElement("span");
+      sqlTitle.textContent = "Generated SQL";
+
+      const sqlActions = document.createElement("div");
+      sqlActions.className = "sql-actions";
+
+      const showBtn = document.createElement("button");
+      showBtn.className = "sql-btn";
+      showBtn.textContent = "Show";
+
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "sql-btn";
+      copyBtn.textContent = "Copy";
+
+      sqlActions.appendChild(showBtn);
+      sqlActions.appendChild(copyBtn);
+      sqlHead.appendChild(sqlTitle);
+      sqlHead.appendChild(sqlActions);
+
+      const sqlBody = document.createElement("div");
+      sqlBody.className = "sql-body";
+      sqlBody.style.display = "none";
+
+      const sqlPre = document.createElement("pre");
+      sqlPre.className = "sql-pre";
+
+      const sqlCode = document.createElement("code");
+      sqlCode.className = "language-sql";
+      sqlCode.textContent = m.sql;
+      sqlPre.appendChild(sqlCode);
+      sqlBody.appendChild(sqlPre);
+
+      if (m.params) {
+        const paramsDiv = document.createElement("div");
+        paramsDiv.style.marginTop = "8px";
+        paramsDiv.style.fontSize = "12px";
+        paramsDiv.style.color = "var(--muted)";
+        paramsDiv.innerHTML = `<strong>Parameters:</strong> ${JSON.stringify(m.params)}`;
+        sqlBody.appendChild(paramsDiv);
+      }
+
+      showBtn.addEventListener("click", () => {
+        const isVisible = sqlBody.style.display !== "none";
+        sqlBody.style.display = isVisible ? "none" : "block";
+        showBtn.textContent = isVisible ? "Show" : "Hide";
+      });
+
+      copyBtn.addEventListener("click", async () => {
+        const sqlText = buildSqlWithParams(m);
+        const ok = await copyToClipboard(sqlText);
+        copyBtn.textContent = ok ? "Copied" : "Failed";
+        setTimeout(() => (copyBtn.textContent = "Copy"), 900);
+      });
+
+      sqlWrap.appendChild(sqlHead);
+      sqlWrap.appendChild(sqlBody);
+      bubble.appendChild(sqlWrap);
+    }
+
+    row.appendChild(role);
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
   }
 
-  function renderAll() {
+  // Подсветка синтаксиса
+  if (window.hljs) {
+    messagesEl.querySelectorAll("pre code").forEach((block) => {
+      try {
+        window.hljs.highlightElement(block);
+      } catch (e) {
+        // ignore
+      }
+    });
+  }
+
+  scrollToBottom();
+
+  // Синхронизируем состояние глобальной кнопки при рендере
+  if (toggleAllBtn) {
+    toggleAllBtn.textContent = allCollapsed ? "+" : "−";
+    toggleAllBtn.title = allCollapsed ? "Развернуть все сообщения" : "Свернуть все сообщения";
+  }
+}
+
+
+function renderAll() {
     renderChatList();
     renderMessages();
   }
 
   /** ---------- Actions ---------- **/
+function deleteMessage(chatId, messageId) {
+  const chat = state.chats.find(c => c.id === chatId);
+  if (!chat) return;
+
+  const msgIndex = chat.messages.findIndex(m => m.id === messageId);
+  if (msgIndex === -1 || msgIndex === 0) return; // Не удаляем первое приветственное сообщение
+
+  // Если удаляем пользовательское сообщение, удаляем и следующее сообщение ассистента (если есть)
+  if (chat.messages[msgIndex].role === "user" &&
+      msgIndex + 1 < chat.messages.length &&
+      chat.messages[msgIndex + 1].role === "assistant") {
+    chat.messages.splice(msgIndex, 2); // Удаляем пару: вопрос + ответ
+  }
+  // Если удаляем сообщение ассистента, удаляем и предыдущее сообщение пользователя (если есть)
+  else if (chat.messages[msgIndex].role === "assistant" &&
+           msgIndex > 0 &&
+           chat.messages[msgIndex - 1].role === "user") {
+    chat.messages.splice(msgIndex - 1, 2); // Удаляем пару: вопрос + ответ
+  }
+  else {
+    chat.messages.splice(msgIndex, 1); // Удаляем только одно сообщение
+  }
+
+  saveState();
+  renderMessages();
+}
 
   function deleteChat(chatId) {
     const idx = state.chats.findIndex(c => c.id === chatId);
@@ -955,12 +1093,14 @@ async function fakeStreamAnswer(userText, assistantMsg, signal) {
       // 1) колонок не больше MAX_TABLE_COLS (с учетом развернутых словарей)
       // 2) И строк больше 1
       if (columns.length > 0 && columns.length <= MAX_TABLE_COLS && rows.length > 1) {
-        assistantMsg.table = { columns, rows };
-        assistantMsg.csv = toCsv(rows, columns);
-        assistantMsg.content = `✅ Result rendered as table (${rows.length} rows, ${columns.length} cols).`;
-        renderMessages();
-        return;
-      }
+          assistantMsg.table = { columns, rows };
+          assistantMsg.csv = toCsv(rows, columns);
+          assistantMsg.content = `✅ Result rendered as table (${rows.length} rows, ${columns.length} cols).`;
+          // Добавляем флаг, что есть таблица для отображения
+          assistantMsg.hasTable = true;
+          renderMessages();
+          return;
+        }
     }
 
     // Во всех остальных случаях показываем как текстовый список
@@ -1079,6 +1219,51 @@ async function fakeStreamAnswer(userText, assistantMsg, signal) {
     return "w4bCi8KcwpPClsKOW1lawqfCtMOcw5vDi8OYw5FNWcKZwpXCuMOSw6DCi8KYwoxDwp7CsMKhwrTDm8OXw5zCjsKmQVtqYn_CmcKfwpnCncKZUm5YYX7Co8KnwpvCpsKgVltkUW3DnsOlw47DnsKOW1lawqTDgMOZw5fDm8ONw5DCjsKiwqZTw4g=";
   }
 
+// Функция глобального сворачивания/разворачивания
+function toggleAllMessages() {
+  const chat = getActiveChat();
+  if (!chat) return;
+
+  allCollapsed = !allCollapsed;
+
+  // Обновляем кнопку
+  toggleAllBtn.textContent = allCollapsed ? "+" : "−";
+  toggleAllBtn.title = allCollapsed ? "Развернуть все сообщения" : "Свернуть все сообщения";
+
+  // Применяем состояние ко всем сообщениям (кроме первого)
+  const messageRows = messagesEl.querySelectorAll('.msg');
+  messageRows.forEach((row, index) => {
+    if (index === 0) return; // Пропускаем первое приветственное сообщение
+
+    const bubble = row.querySelector('.bubble');
+    if (!bubble) return;
+
+    // Находим элементы для сворачивания
+    const textContent = bubble.querySelector('.collapsible-content') ||
+                       bubble.querySelector('.content > div:not(.table-info)');
+    const tblWrap = bubble.querySelector('.tbl-wrap');
+    const sqlWrap = bubble.querySelector('.sql-wrap');
+    const toggleBtn = bubble.querySelector('.toggle-msg-btn');
+
+    // Применяем состояние
+    const displayValue = allCollapsed ? "none" : "";
+
+    if (textContent) textContent.style.display = displayValue;
+    if (tblWrap) tblWrap.style.display = displayValue;
+    if (sqlWrap) sqlWrap.style.display = displayValue;
+
+    // Обновляем индивидуальную кнопку сообщения
+    if (toggleBtn) {
+      toggleBtn.textContent = allCollapsed ? "+" : "−";
+      toggleBtn.title = allCollapsed ? "Развернуть сообщение" : "Свернуть сообщение";
+    }
+  });
+}
+
+// Добавляем обработчик события
+toggleAllBtn?.addEventListener("click", toggleAllMessages);
+
+
   /** ---------- Init bindings ---------- **/
     scrollToEndBtn?.addEventListener("click", () => {
       scrollToBottom();
@@ -1097,3 +1282,4 @@ async function fakeStreamAnswer(userText, assistantMsg, signal) {
 
   promptInput.focus();
 });
+
