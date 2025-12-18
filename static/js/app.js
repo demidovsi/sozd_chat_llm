@@ -525,6 +525,7 @@ function renderMessages() {
   for (const m of currentChat.messages) {
     const msg = document.createElement('div');
     msg.className = `msg ${m.role}`;
+    msg.dataset.id = m.id;
     if (m.error) msg.classList.add('error');
 
     // Role icon
@@ -811,10 +812,39 @@ function toggleMessage(messageId) {
   const message = currentChat.messages.find(m => m.id === messageId);
   if (!message) return;
 
+  // Переключаем только это сообщение
   message.collapsed = !message.collapsed;
+
+  // Проверяем, есть ли хоть один развернутый ассистент
+  const anyExpanded = currentChat.messages.some(
+    (m, idx) => idx > 0 && m.role === "assistant" && !m.collapsed
+  );
+
+  // Обновляем глобальный флаг "все свернуты"
+  allCollapsed = !anyExpanded;
+
+  // Обновляем подпись на глобальной кнопке
+  toggleAllBtn.textContent = allCollapsed ? "+" : "−";
+  toggleAllBtn.title = allCollapsed
+    ? "Развернуть все сообщения"
+    : "Свернуть все сообщения";
+
   saveState();
   renderMessages();
+
+  // 🔽 После перерендера скроллим к началу этого сообщения
+  requestAnimationFrame(() => {
+    const node = document.querySelector(`.msg[data-id="${messageId}"]`);
+    if (node) {
+      node.scrollIntoView({
+        block: "start",
+        inline: "nearest",
+        behavior: "auto"   // можно "smooth" если хочешь плавно
+      });
+    }
+  });
 }
+
 
 function renderAll() {
     renderChatList();
@@ -1301,45 +1331,31 @@ async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) {
   }
 
 // Функция глобального сворачивания/разворачивания
+// Функция глобального сворачивания/разворачивания
 function toggleAllMessages() {
   const chat = getActiveChat();
   if (!chat) return;
 
-  allCollapsed = !allCollapsed;
+  // новое глобальное состояние
+  const next = !allCollapsed;
+  allCollapsed = next;
 
-  // Обновляем кнопку
-  toggleAllBtn.textContent = allCollapsed ? "+" : "−";
-  toggleAllBtn.title = allCollapsed ? "Развернуть все сообщения" : "Свернуть все сообщения";
-
-  // Применяем состояние ко всем сообщениям (кроме первого)
-  const messageRows = messagesEl.querySelectorAll('.msg');
-  messageRows.forEach((row, index) => {
-    if (index === 0) return; // Пропускаем первое приветственное сообщение
-
-    const bubble = row.querySelector('.bubble');
-    if (!bubble) return;
-
-    // Находим элементы для сворачивания
-    const textContent = bubble.querySelector('.collapsible-content') ||
-                       bubble.querySelector('.content > div:not(.table-info)');
-    const tblWrap = bubble.querySelector('.tbl-wrap');
-    const sqlWrap = bubble.querySelector('.sql-wrap');
-    const toggleBtn = bubble.querySelector('.toggle-msg-btn');
-
-    // Применяем состояние
-    const displayValue = allCollapsed ? "none" : "";
-
-    if (textContent) textContent.style.display = displayValue;
-    if (tblWrap) tblWrap.style.display = displayValue;
-    if (sqlWrap) sqlWrap.style.display = displayValue;
-
-    // Обновляем индивидуальную кнопку сообщения
-    if (toggleBtn) {
-      toggleBtn.textContent = allCollapsed ? "+" : "−";
-      toggleBtn.title = allCollapsed ? "Развернуть сообщение" : "Свернуть сообщение";
+  // Проставляем collapsed всем ассистентским сообщениям (кроме первого приветственного)
+  chat.messages.forEach((m, idx) => {
+    if (idx === 0) return;
+    if (m.role === "assistant") {
+      m.collapsed = next;
     }
   });
+
+  // Обновляем кнопку
+  toggleAllBtn.textContent = next ? "+" : "−";
+  toggleAllBtn.title = next ? "Развернуть все сообщения" : "Свернуть все сообщения";
+
+  saveState();
+  renderMessages();
 }
+
 
 // Добавляем обработчик события
 toggleAllBtn?.addEventListener("click", toggleAllMessages);
