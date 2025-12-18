@@ -13,7 +13,9 @@
  */
 const config = {
   kirill: "wqzDi8OVw43DjcOOwoTCncKZwpM=",
-  URL: "http://159.223.0.234:5000/"
+  URL: "http://159.223.0.234:5000/",
+  URL_rest: "https://159.223.0.234:5051/"
+//  URL_rest: "http://localhost:5050/"
 };
 
 const LS_KEY = "chatui_demo_v1";
@@ -27,6 +29,9 @@ let token_admin = null;
 let currentAbortController = null;
 let isGenerating = false;
 let lastUserMessageCache = "";
+
+const scrollToEndBtn = el("scrollToEndBtn");
+const scrollToTopBtn = el("scrollToTopBtn");
 
 /** ---------- State ---------- **/
 function loadState() {
@@ -96,14 +101,37 @@ function getColumnsFromRows(rows) {
   const set = new Set();
   for (const r of rows) {
     if (r && typeof r === "object" && !Array.isArray(r)) {
-      Object.keys(r).forEach(k => set.add(k));
+      Object.entries(r).forEach(([key, value]) => {
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          // Если значение - словарь, добавляем его ключи как отдельные колонки
+          Object.keys(value).forEach(subKey => {
+            set.add(`${key}.${subKey}`);
+          });
+        } else {
+          set.add(key);
+        }
+      });
     }
   }
   return Array.from(set);
 }
 
-function escapeCell(v) {
+function escapeCell(v, column, row) {
   if (v === null || v === undefined) return "";
+
+  // Если колонка содержит точку - это развернутый ключ словаря
+  if (typeof column === "string" && column.includes(".")) {
+    const [mainKey, subKey] = column.split(".", 2);
+    const mainValue = row?.[mainKey];
+    if (mainValue && typeof mainValue === "object" && !Array.isArray(mainValue)) {
+      const subValue = mainValue[subKey];
+      if (subValue === null || subValue === undefined) return "";
+      if (typeof subValue === "object") return JSON.stringify(subValue);
+      return String(subValue);
+    }
+    return "";
+  }
+
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);
 }
@@ -206,7 +234,7 @@ function initTheme(themeSelect, themeToggleBtn) {
 
 /** ---------- Backend call ---------- **/
 async function fetchSqlText(userText, { signal } = {}) {
-  const url = "https://159.223.0.234:5051/sql/text";
+  const url = config.URL_rest + "sql/text";
 
   const requestBody = {
     user_conditions: userText,
@@ -325,6 +353,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function scrollToBottom() {
     messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function scrollToTop() {
+    messagesEl.scrollTop = 0;
   }
 
   function renderChatList() {
@@ -535,7 +567,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const tr = document.createElement("tr");
           for (const col of m.table.columns) {
             const td = document.createElement("td");
-            td.textContent = escapeCell(rowObj?.[col]);
+            td.textContent = escapeCell(rowObj?.[col], col, rowObj);
             tr.appendChild(td);
           }
           tbody.appendChild(tr);
@@ -571,7 +603,10 @@ document.addEventListener("DOMContentLoaded", () => {
         toggleBtn.addEventListener("click", () => {
           m.sqlOpen = !m.sqlOpen;
           saveState();
-          renderMessages();
+          // Переключаем класс только на текущем wrap элементе
+          wrap.classList.toggle("open", m.sqlOpen);
+          toggleBtn.textContent = m.sqlOpen ? "Hide SQL" : "Show SQL";
+          //renderMessages();
         });
 
         const copySqlBtn = document.createElement("button");
@@ -831,93 +866,115 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function formatExecuteResult(result) {
-      if (typeof result === "string") return result;
-      if (!Array.isArray(result)) return JSON.stringify(result, null, 2);
-      if (result.length === 0) return "Результат: пустой массив";
+  if (typeof result === "string") return result;
+  if (!Array.isArray(result)) return JSON.stringify(result, null, 2);
+  if (result.length === 0) return "Результат: пустой массив";
 
-      if (typeof result[0] === "object" && result[0] !== null) {
-        return result
-          .map((row, idx) => {
-            const lines = Object.entries(row).map(
-              ([key, value]) => `  ${key}: ${value === null ? "null" : String(value)}`
-            );
-            // Убираем порядковый номер если запись только одна
-            if (result.length === 1) {
-              return lines.join("\n");
-            }
-            return `${idx + 1})\n${lines.join("\n")}`;
-          })
-          .join("\n\n");
-      }
+  if (typeof result[0] === "object" && result[0] !== null) {
+    return result
+      .map((row, idx) => {
+        const flattenedRow = {};
 
-      // Для простых значений тоже убираем номер если элемент один
-      if (result.length === 1) {
-        return String(result[0]);
-      }
+        // Разворачиваем словари в отдельные поля
+        Object.entries(row).forEach(([key, value]) => {
+          if (value && typeof value === "object" && !Array.isArray(value)) {
+            // Если значение - словарь, разворачиваем его ключи
+            Object.entries(value).forEach(([subKey, subValue]) => {
+              flattenedRow[`${key}.${subKey}`] = subValue;
+            });
+          } else {
+            flattenedRow[key] = value;
+          }
+        });
 
-      return result.map((value, idx) => `${idx + 1}) ${String(value)}`).join("\n");
+        const lines = Object.entries(flattenedRow).map(
+          ([key, value]) => {
+            const displayValue = value === null ? "null" : String(value);
+            // Всегда выделяем ключи жирным (и для одной строки, и для нескольких)
+            return `  **${key}**: ${displayValue}`;
+          }
+        );
+
+        // Убираем порядковый номер если запись только одна
+        if (result.length === 1) {
+          return lines.join("\n");
+        }
+        return `${idx + 1})\n${lines.join("\n")}`;
+      })
+      .join("\n\n");
+  }
+
+  // Для простых значений тоже убираем номер если элемент один
+  if (result.length === 1) {
+    return String(result[0]);
+  }
+
+  return result.map((value, idx) => `${idx + 1}) ${String(value)}`).join("\n");
+}
+
+async function fakeStreamAnswer(userText, assistantMsg, signal) {
+  try {
+    const response = await fetchSqlText(userText, { signal });
+
+    let sqlText = "";
+    let params = null;
+
+    if (response && typeof response === "object") {
+      sqlText = typeof response.sql === "string" ? response.sql : "";
+      params = response.params ?? null;
     }
 
+    if (!sqlText) throw new Error("SQL not generated");
 
-  async function fakeStreamAnswer(userText, assistantMsg, signal) {
+    assistantMsg.sql = sqlText;
+    assistantMsg.params = params;
+    renderMessages();
+
+    const encodedToken = await getEncodedAdminToken({ signal });
+
+    let executeResult;
     try {
-      const response = await fetchSqlText(userText, { signal });
-
-      let sqlText = "";
-      let params = null;
-
-      if (response && typeof response === "object") {
-        sqlText = typeof response.sql === "string" ? response.sql : "";
-        params = response.params ?? null;
-      }
-
-      if (!sqlText) throw new Error("SQL not generated");
-
-      assistantMsg.sql = sqlText;
-      assistantMsg.params = params;
-      //assistantMsg.sqlOpen = true;
+      executeResult = await executeSqlViaApi(
+        { sqlText, params, token: encodedToken },
+        { signal }
+      );
+    } catch (execErr) {
+      assistantMsg.error = true;
+      assistantMsg.content = "❌ Ошибка выполнения SQL\n\n" + (execErr?.message || String(execErr));
       renderMessages();
+      return;
+    }
 
-      const encodedToken = await getEncodedAdminToken({ signal });
+    setOverlay(false);
 
-      let executeResult;
-      try {
-        executeResult = await executeSqlViaApi(
-          { sqlText, params, token: encodedToken },
-          { signal }
-        );
-      } catch (execErr) {
-        assistantMsg.error = true;
-        assistantMsg.content = "❌ Ошибка выполнения SQL\n\n" + (execErr?.message || String(execErr));
+    if (isArrayOfObjects(executeResult)) {
+      const rows = executeResult;
+      const columns = getColumnsFromRows(rows);
+
+      // Показываем таблицу только если:
+      // 1) колонок не больше MAX_TABLE_COLS (с учетом развернутых словарей)
+      // 2) И строк больше 1
+      if (columns.length > 0 && columns.length <= MAX_TABLE_COLS && rows.length > 1) {
+        assistantMsg.table = { columns, rows };
+        assistantMsg.csv = toCsv(rows, columns);
+        assistantMsg.content = `✅ Result rendered as table (${rows.length} rows, ${columns.length} cols).`;
         renderMessages();
         return;
       }
-
-      setOverlay(false);
-
-      if (isArrayOfObjects(executeResult)) {
-        const rows = executeResult;
-        const columns = getColumnsFromRows(rows);
-
-        if (columns.length > 0 && columns.length <= MAX_TABLE_COLS && rows.length > 1) {
-          assistantMsg.table = { columns, rows };
-          assistantMsg.csv = toCsv(rows, columns);
-          assistantMsg.content = `✅ Result rendered as table (${rows.length} rows, ${columns.length} cols).`;
-          renderMessages();
-          return;
-        }
-      }
-
-      const answerText = formatExecuteResult(executeResult);
-      assistantMsg.content = answerText;
-      renderMessages();
-    } catch (error) {
-      if (error?.name === "AbortError") return;
-      assistantMsg.error = true;
-      assistantMsg.content = "❌ Ошибка при подготовке запроса\n\n" + (error?.message || String(error));
-      renderMessages();
     }
+
+    // Во всех остальных случаях показываем как текстовый список
+    // (одна строка ИЛИ много колонок с учетом развернутых словарей)
+    const answerText = formatExecuteResult(executeResult);
+    assistantMsg.content = answerText;
+    renderMessages();
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    assistantMsg.error = true;
+    assistantMsg.content = "❌ Ошибка при подготовке запроса\n\n" + (error?.message || String(error));
+    renderMessages();
   }
+}
 
   /** ---------- Token crypto helpers ---------- **/
   function base64UrlDecodeToString(b64url) {
@@ -1023,6 +1080,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /** ---------- Init bindings ---------- **/
+    scrollToEndBtn?.addEventListener("click", () => {
+      scrollToBottom();
+    });
+
+    scrollToTopBtn?.addEventListener("click", () => {
+      scrollToTop();
+    });
+
   newChatBtn?.addEventListener("click", newChat);
   clearBtn?.addEventListener("click", clearMessages);
   exportBtn?.addEventListener("click", exportJSON);
