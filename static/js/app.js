@@ -206,7 +206,7 @@ function initTheme(themeSelect, themeToggleBtn) {
 
 /** ---------- Backend call ---------- **/
 async function fetchSqlText(userText, { signal } = {}) {
-  const url = "http://localhost:5050/sql/text";
+  const url = "https://159.223.0.234:5051/sql/text";
 
   const requestBody = {
     user_conditions: userText,
