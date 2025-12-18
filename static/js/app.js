@@ -774,18 +774,23 @@ function renderMessages() {
     }
 
     if (m.role === "assistant" && (m.restRequestAt || m.restResponseAt)) {
+      const isTable = !!m.table;
+      const len = isTable ? null : (m.content || "").length;
       const tReq = m.restRequestAt ? formatTimeForMeta(m.restRequestAt) : null;
       const tResp = m.restResponseAt ? formatTimeForMeta(m.restResponseAt) : null;
       const dur = m.restDurationMs != null ? formatDurationMs(m.restDurationMs) : null;
 
       const parts = [];
-      if (tReq) parts.push(`start: ${tReq}`);
-      if (tResp) parts.push(`end: ${tResp}`);
-      if (dur) parts.push(`duration: ${dur}`);
+
+      if (!isTable && len) parts.push(`len: ${len}`);
+      if (tReq) parts.push(`REST start: ${tReq}`);
+      if (tResp) parts.push(`REST end: ${tResp}`);
+      if (dur) parts.push(`REST: ${dur}`);
 
       meta.textContent = parts.join(" • ");
       collapsibleContent.appendChild(meta);
     }
+
 
     // завершение
     bubble.appendChild(collapsibleContent);
@@ -1042,9 +1047,6 @@ function formatExecuteResult(result) {
 
   return result
     .map((row, idx) => {
-      const prefix =
-        result.length === 1 ? "" : `${idx + 1})\n`;
-
       if (typeof row !== "object" || row === null) {
         return result.length === 1
           ? String(row)
@@ -1061,13 +1063,8 @@ function formatExecuteResult(result) {
           value.every(v => typeof v === "object" && v !== null && !Array.isArray(v))
         ) {
           lines.push(`  **${key}**:`);
-
           value.forEach((obj, subIdx) => {
-            lines.push(
-              result.length === 1
-                ? `    ${subIdx + 1})`
-                : `    ${subIdx + 1})`
-            );
+            lines.push(`    ${subIdx + 1})`);
             for (const [subKey, subValue] of Object.entries(obj)) {
               lines.push(
                 `      **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
@@ -1076,6 +1073,16 @@ function formatExecuteResult(result) {
             lines.push("");
           });
         }
+        // 🟩 одиночный словарь
+        else if (value && typeof value === "object" && !Array.isArray(value)) {
+          lines.push(`  **${key}**:`);
+          for (const [subKey, subValue] of Object.entries(value)) {
+            lines.push(
+              `    **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
+            );
+          }
+        }
+        // обычное поле
         else {
           lines.push(
             `  **${key}**: ${value === null ? "null" : String(value)}`
@@ -1089,7 +1096,6 @@ function formatExecuteResult(result) {
     })
     .join("\n\n");
 }
-
 
 
 async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) {
@@ -1151,19 +1157,34 @@ async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) {
       const rows = executeResult;
       const columns = getColumnsFromRows(rows);
 
+      // Проверяем, есть ли "сложные" колонки: словарь или массив словарей
+      const hasComplex = rows.some(r =>
+        r && Object.values(r).some(v =>
+          (
+            Array.isArray(v) &&
+            v.length > 0 &&
+            v.every(o => o && typeof o === "object" && !Array.isArray(o))
+          ) ||
+          (
+            v && typeof v === "object" && !Array.isArray(v)
+          )
+        )
+      );
+
       // Показываем таблицу только если:
-      // 1) колонок не больше MAX_TABLE_COLS (с учетом развернутых словарей)
-      // 2) И строк больше 1
-      if (columns.length > 0 && columns.length <= MAX_TABLE_COLS && rows.length > 1) {
+      // 1) нет сложных структур (массивов словарей / словарей)
+      // 2) колонок не больше MAX_TABLE_COLS
+      // 3) строк больше 1
+      if (!hasComplex && columns.length > 0 && columns.length <= MAX_TABLE_COLS && rows.length > 1) {
         assistantMsg.table = { columns, rows };
         assistantMsg.csv = toCsv(rows, columns);
         assistantMsg.content = `✅ Result rendered as table (${rows.length} rows, ${columns.length} cols).`;
-        // флаг, что есть таблица
         assistantMsg.hasTable = true;
         renderMessages();
         return;
       }
     }
+
 
     // Во всех остальных случаях показываем как текстовый список
     const answerText = formatExecuteResult(executeResult);
