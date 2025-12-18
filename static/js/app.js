@@ -572,7 +572,7 @@ function renderMessages() {
       };
       topControls.appendChild(copyBtn);
 
-      // Кнопки управления только для ассистента
+      // Кнопки управления для ассистента
       if (m.role === 'assistant') {
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'toggle-msg-btn icon-btn';
@@ -591,6 +591,17 @@ function renderMessages() {
         topControls.appendChild(toggleBtn);
         topControls.appendChild(deleteBtn);
       }
+      // 🔹 Кнопка удаления для USER-сообщений
+      else if (m.role === 'user') {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-msg-btn icon-btn';
+        deleteBtn.textContent = '❌';
+        deleteBtn.title = 'Удалить вопрос и ответ';
+        deleteBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
+        deleteBtn.onclick = () => deleteMessage(currentChat.id, m.id);
+
+        topControls.appendChild(deleteBtn);
+      }
 
       // Показываем/скрываем кнопки при наведении на сообщение
       bubble.addEventListener('mouseenter', () => {
@@ -602,6 +613,7 @@ function renderMessages() {
 
       bubble.appendChild(topControls);
     }
+
 
     // Основной контент
     const collapsibleContent = document.createElement('div');
