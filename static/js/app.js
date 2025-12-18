@@ -537,7 +537,7 @@ function renderMessages() {
     bubble.className = 'bubble';
     bubble.style.position = 'relative'; // Для позиционирования кнопок
 
-    // Контейнер для всех кнопок в первой строке (показывается при наведении)
+    // ---------- Hover-контролы (Copy + Delete / Toggle) ----------
     if ((m.role === 'assistant' && (m.content || m.sql)) || (m.role === 'user' && m.content)) {
       const topControls = document.createElement('div');
       topControls.className = 'hover-controls';
@@ -591,7 +591,7 @@ function renderMessages() {
         topControls.appendChild(toggleBtn);
         topControls.appendChild(deleteBtn);
       }
-      // 🔹 Кнопка удаления для USER-сообщений
+      // Кнопка удаления для USER-сообщений
       else if (m.role === 'user') {
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'delete-msg-btn icon-btn';
@@ -614,8 +614,7 @@ function renderMessages() {
       bubble.appendChild(topControls);
     }
 
-
-    // Основной контент
+    // ---------- Основной контент (то, что сворачивается) ----------
     const collapsibleContent = document.createElement('div');
     collapsibleContent.className = 'collapsible-content';
     if (m.collapsed) {
@@ -627,7 +626,7 @@ function renderMessages() {
       const content = document.createElement('div');
       content.className = 'content';
       content.innerHTML = renderMarkdownSafe(m.content);
-      makeLinksOpenInNewTab(content);   // ← вот это добавили
+      makeLinksOpenInNewTab(content);
       collapsibleContent.appendChild(content);
     }
 
@@ -659,22 +658,19 @@ function renderMessages() {
       sqlPre.appendChild(sqlCode);
       sqlBody.appendChild(sqlPre);
 
-      // ---- PARAMS block ----
-    if (m.params) {
-      const paramsPre = document.createElement("pre");
-      paramsPre.className = "sql-pre params-pre";
-
-      // красиво форматируем JSON
-      paramsPre.textContent = "Params:\n" + JSON.stringify(m.params, null, 2);
-
-      sqlBody.appendChild(paramsPre);
-    }
+      // блок Params
+      if (m.params) {
+        const paramsPre = document.createElement("pre");
+        paramsPre.className = "sql-pre params-pre";
+        paramsPre.textContent = "Params:\n" + JSON.stringify(m.params, null, 2);
+        sqlBody.appendChild(paramsPre);
+      }
 
       sqlWrap.appendChild(sqlHead);
       sqlWrap.appendChild(sqlBody);
       collapsibleContent.appendChild(sqlWrap);
 
-      // Добавляем обработчики для кнопок SQL
+      // Кнопки SQL
       const buttons = sqlHead.querySelectorAll('.sql-btn');
       buttons[0].onclick = () => copyToClipboard(m.sql);
       buttons[1].onclick = () => {
@@ -684,13 +680,13 @@ function renderMessages() {
         saveState();
       };
 
-      // Подсвечиваем синтаксис
+      // Подсветка
       if (typeof hljs !== 'undefined') {
         hljs.highlightElement(sqlCode);
       }
     }
 
-    // Таблица с поддержкой кликабельных ссылок
+    // Таблица
     if (m.table && m.table.rows && m.table.rows.length > 0) {
       const { columns, rows } = m.table;
 
@@ -716,7 +712,6 @@ function renderMessages() {
       const table = document.createElement('table');
       table.className = 'tbl';
 
-      // Создание заголовков
       const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
       for (const col of columns) {
@@ -727,7 +722,6 @@ function renderMessages() {
       thead.appendChild(headerRow);
       table.appendChild(thead);
 
-      // Создание строк с поддержкой ссылок
       const tbody = document.createElement('tbody');
       for (const row of rows) {
         const tr = document.createElement('tr');
@@ -746,7 +740,6 @@ function renderMessages() {
       tblWrap.appendChild(tblScroller);
       collapsibleContent.appendChild(tblWrap);
 
-      // Добавляем обработчик для CSV
       const csvBtn = tblHead.querySelector('.sql-btn');
       csvBtn.onclick = () => {
         const csv = toCsv(rows, columns);
@@ -754,9 +747,13 @@ function renderMessages() {
       };
     }
 
-    // 🔹 МЕТА-БЛОК С ТАЙМИНГАМИ REST-ЗАПРОСА
+    // Добавляем основной контент в bubble
+    bubble.appendChild(collapsibleContent);
+
+    // ---------- МЕТА-БЛОК (всегда виден, вне collapsible-content) ----------
     const meta = document.createElement("div");
     meta.className = "msg-meta";
+    let hasMeta = false;
 
     if (m.role === "user" && m.restRequestAt) {
       const len = (m.content || "").length;
@@ -770,7 +767,7 @@ function renderMessages() {
       if (dur) parts.push(dur);
 
       meta.textContent = parts.join(" • ");
-      collapsibleContent.appendChild(meta);
+      hasMeta = true;
     }
 
     if (m.role === "assistant" && (m.restRequestAt || m.restResponseAt)) {
@@ -781,20 +778,22 @@ function renderMessages() {
       const dur = m.restDurationMs != null ? formatDurationMs(m.restDurationMs) : null;
 
       const parts = [];
-
       if (!isTable && len) parts.push(`len: ${len}`);
       if (tReq) parts.push(`REST start: ${tReq}`);
       if (tResp) parts.push(`REST end: ${tResp}`);
       if (dur) parts.push(`REST: ${dur}`);
 
-      meta.textContent = parts.join(" • ");
-      collapsibleContent.appendChild(meta);
+      if (parts.length) {
+        meta.textContent = parts.join(" • ");
+        hasMeta = true;
+      }
     }
 
+    if (hasMeta) {
+      bubble.appendChild(meta);
+    }
 
     // завершение
-    bubble.appendChild(collapsibleContent);
-
     msg.appendChild(role);
     msg.appendChild(bubble);
     messagesContainer.appendChild(msg);
