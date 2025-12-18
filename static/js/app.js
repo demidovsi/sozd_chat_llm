@@ -142,7 +142,6 @@ function isUrl(string) {
   }
 }
 
-
 function toCsv(rows, columns) {
   const esc = (s) => {
     // Убираем HTML теги из значения для CSV
@@ -158,7 +157,6 @@ function toCsv(rows, columns) {
   const lines = rows.map(r => columns.map(c => esc(r?.[c])).join(";"));
   return [header, ...lines].join("\n");
 }
-
 
 function downloadTextFile(filename, text, mime = "text/plain;charset=utf-8") {
   const BOM = "\uFEFF"; // чтобы Excel корректно открыл UTF-8
@@ -415,60 +413,59 @@ document.addEventListener("DOMContentLoaded", () => {
       meta.className = "meta";
 
       const name = document.createElement("div");
-        name.className = "name";
-        name.textContent = chat.title || "Untitled";
+      name.className = "name";
+      name.textContent = chat.title || "Untitled";
 
-        // Добавляем обработчик двойного клика для редактирования прямо в списке
-        name.addEventListener("dblclick", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
+      // Добавляем обработчик двойного клика для редактирования прямо в списке
+      name.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
 
-          console.log('dblclick на чате в списке:', chat.title);
+        console.log('dblclick на чате в списке:', chat.title);
 
-          // Если уже в режиме редактирования — выходим
-          if (name.querySelector("input")) return;
+        // Если уже в режиме редактирования — выходим
+        if (name.querySelector("input")) return;
 
-          const current = chat.title || "";
-          name.innerHTML = "";
+        const current = chat.title || "";
+        name.innerHTML = "";
 
-          const input = document.createElement("input");
-          input.type = "text";
-          input.value = current;
-          input.className = "chat-title-input";
-          input.style.width = "100%";
-          input.style.fontSize = "inherit";
-          input.style.fontFamily = "inherit";
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = current;
+        input.className = "chat-title-input";
+        input.style.width = "100%";
+        input.style.fontSize = "inherit";
+        input.style.fontFamily = "inherit";
 
-          name.appendChild(input);
-          input.focus();
-          input.select();
+        name.appendChild(input);
+        input.focus();
+        input.select();
 
-          const finish = (commit) => {
-            if (commit) {
-              const next = (input.value || "").trim() || "Untitled";
-              chat.title = next;
-              saveState();
-            }
+        const finish = (commit) => {
+          if (commit) {
+            const next = (input.value || "").trim() || "Untitled";
+            chat.title = next;
+            saveState();
+          }
 
-            name.textContent = chat.title || "Untitled";
-            // НЕ вызываем renderAll() чтобы не сбросить фокус
-          };
+          name.textContent = chat.title || "Untitled";
+          // НЕ вызываем renderAll() чтобы не сбросить фокус
+        };
 
-          input.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              finish(true);
-            } else if (e.key === "Escape") {
-              e.preventDefault();
-              finish(false);
-            }
-          });
-
-          input.addEventListener("blur", () => {
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
             finish(true);
-          });
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            finish(false);
+          }
         });
 
+        input.addEventListener("blur", () => {
+          finish(true);
+        });
+      });
 
       const preview = document.createElement("div");
       preview.className = "preview";
@@ -490,390 +487,433 @@ document.addEventListener("DOMContentLoaded", () => {
       item.appendChild(del);
 
       item.addEventListener("click", (e) => {
-          // Проверяем, что клик НЕ по кнопке удаления
-          if (e.target.closest('.icon-btn')) return;
-          // Проверяем, является ли цель клика заголовком чата или его содержимым
-          if (e.target.id === 'chatTitle' || e.target.closest('#chatTitle')) return;
+        // Проверяем, что клик НЕ по кнопке удаления
+        if (e.target.closest('.icon-btn')) return;
+        // Проверяем, является ли цель клика заголовком чата или его содержимым
+        if (e.target.id === 'chatTitle' || e.target.closest('#chatTitle')) return;
 
-          // Проверяем, что это НЕ двойной клик
-          if (e.detail === 2) return;
+        // Проверяем, что это НЕ двойной клик
+        if (e.detail === 2) return;
 
-          // Если чат уже активен, не переключаем
-          if (chat.id === state.activeChatId) return;
+        // Если чат уже активен, не переключаем
+        if (chat.id === state.activeChatId) return;
 
-          state.activeChatId = chat.id;
-          saveState();
-          renderAll();
-          requestAnimationFrame(() => promptInput.focus());
+        state.activeChatId = chat.id;
+        saveState();
+        renderAll();
+        requestAnimationFrame(() => promptInput.focus());
       });
-
-
 
       chatListEl.appendChild(item);
     }
   }
 
-function renderMessages() {
-  const messagesContainer = document.querySelector('.messages');
-  if (!messagesContainer) return;
+  function renderMessages() {
+    const messagesContainer = document.querySelector('.messages');
+    if (!messagesContainer) return;
 
-  const currentChat = getActiveChat();
-  if (!currentChat) return;
+    const currentChat = getActiveChat();
+    if (!currentChat) return;
 
-  messagesContainer.innerHTML = '';
+    messagesContainer.innerHTML = '';
 
-  for (const m of currentChat.messages) {
-    const msg = document.createElement('div');
-    msg.className = `msg ${m.role}`;
-    msg.dataset.id = m.id;
-    if (m.error) msg.classList.add('error');
+    for (const m of currentChat.messages) {
+      const msg = document.createElement('div');
+      msg.className = `msg ${m.role}`;
+      msg.dataset.id = m.id;
+      if (m.error) msg.classList.add('error');
 
-    // Role icon
-    const role = document.createElement('div');
-    role.className = 'role';
-    role.textContent = m.role === 'user' ? 'U' : 'A';
+      // Role icon
+      const role = document.createElement('div');
+      role.className = 'role';
+      role.textContent = m.role === 'user' ? 'U' : 'A';
 
-    // Message bubble
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble';
-    bubble.style.position = 'relative'; // Для позиционирования кнопок
+      // Message bubble
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.style.position = 'relative'; // Для позиционирования кнопок
 
-    // ---------- Hover-контролы (Copy + Delete / Toggle) ----------
-    if ((m.role === 'assistant' && (m.content || m.sql)) || (m.role === 'user' && m.content)) {
-      const topControls = document.createElement('div');
-      topControls.className = 'hover-controls';
-      topControls.style.cssText = `
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        display: flex;
-        gap: 4px;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-        z-index: 10;
-        background: var(--bg);
-        border-radius: 4px;
-        padding: 2px;
-      `;
+      // ---------- Hover-контролы (Copy + Delete / Toggle) ----------
+      if ((m.role === 'assistant' && (m.content || m.sql)) || (m.role === 'user' && m.content)) {
+        const topControls = document.createElement('div');
+        topControls.className = 'hover-controls';
+        topControls.style.cssText = `
+          position: sticky;
+          top: 0;
+          right: 8px;
+          margin-top: 4px;
+          display: flex;
+          gap: 4px;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+          z-index: 10;
+          background: var(--bg);
+          border-radius: 4px;
+          padding: 2px;
+          width: max-content;
+          margin-left: auto;
+        `;
 
-      // Кнопка копирования
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'copy-btn icon-btn';
-      copyBtn.textContent = 'Copy';
-      copyBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
-      copyBtn.onclick = () => {
-        if (m.role === 'user') {
-          copyToClipboard(m.content);
-        } else {
-          let text = '';
-          if (m.content) text += m.content + '\n\n';
-          if (m.sql) text += 'SQL:\n' + m.sql;
-          copyToClipboard(text);
+        // Кнопка копирования
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn icon-btn';
+        copyBtn.textContent = 'Copy';
+        copyBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
+        copyBtn.onclick = () => {
+          if (m.role === 'user') {
+            copyToClipboard(m.content);
+          } else {
+            let text = '';
+            if (m.content) text += m.content + '\n\n';
+            if (m.sql) text += 'SQL:\n' + m.sql;
+            copyToClipboard(text);
+          }
+        };
+        topControls.appendChild(copyBtn);
+
+        // Кнопки управления для ассистента
+        if (m.role === 'assistant') {
+          const toggleBtn = document.createElement('button');
+          toggleBtn.className = 'toggle-msg-btn icon-btn';
+          toggleBtn.textContent = m.collapsed ? '+' : '−';
+          toggleBtn.title = m.collapsed ? 'Развернуть' : 'Свернуть';
+          toggleBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
+          toggleBtn.onclick = () => toggleMessage(m.id);
+
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'delete-msg-btn icon-btn';
+          deleteBtn.textContent = '❌';
+          deleteBtn.title = 'Удалить';
+          deleteBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
+          deleteBtn.onclick = () => deleteMessage(currentChat.id, m.id);
+
+          topControls.appendChild(toggleBtn);
+          topControls.appendChild(deleteBtn);
         }
-      };
-      topControls.appendChild(copyBtn);
+        // Кнопка удаления для USER-сообщений
+        else if (m.role === 'user') {
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'delete-msg-btn icon-btn';
+          deleteBtn.textContent = '❌';
+          deleteBtn.title = 'Удалить вопрос и ответ';
+          deleteBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
+          deleteBtn.onclick = () => deleteMessage(currentChat.id, m.id);
 
-      // Кнопки управления для ассистента
-      if (m.role === 'assistant') {
-        const toggleBtn = document.createElement('button');
-        toggleBtn.className = 'toggle-msg-btn icon-btn';
-        toggleBtn.textContent = m.collapsed ? '+' : '−';
-        toggleBtn.title = m.collapsed ? 'Развернуть' : 'Свернуть';
-        toggleBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
-        toggleBtn.onclick = () => toggleMessage(m.id);
+          topControls.appendChild(deleteBtn);
+        }
 
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-msg-btn icon-btn';
-        deleteBtn.textContent = '❌';
-        deleteBtn.title = 'Удалить';
-        deleteBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
-        deleteBtn.onclick = () => deleteMessage(currentChat.id, m.id);
+        // Показываем/скрываем кнопки при наведении на сообщение
+        bubble.addEventListener('mouseenter', () => {
+          topControls.style.opacity = '1';
+        });
+        bubble.addEventListener('mouseleave', () => {
+          topControls.style.opacity = '0';
+        });
 
-        topControls.appendChild(toggleBtn);
-        topControls.appendChild(deleteBtn);
-      }
-      // Кнопка удаления для USER-сообщений
-      else if (m.role === 'user') {
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-msg-btn icon-btn';
-        deleteBtn.textContent = '❌';
-        deleteBtn.title = 'Удалить вопрос и ответ';
-        deleteBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
-        deleteBtn.onclick = () => deleteMessage(currentChat.id, m.id);
-
-        topControls.appendChild(deleteBtn);
+        bubble.appendChild(topControls);
       }
 
-      // Показываем/скрываем кнопки при наведении на сообщение
-      bubble.addEventListener('mouseenter', () => {
-        topControls.style.opacity = '1';
-      });
-      bubble.addEventListener('mouseleave', () => {
-        topControls.style.opacity = '0';
-      });
-
-      bubble.appendChild(topControls);
-    }
-
-    // ---------- Основной контент (то, что сворачивается) ----------
-    const collapsibleContent = document.createElement('div');
-    collapsibleContent.className = 'collapsible-content';
-    if (m.collapsed) {
-      collapsibleContent.style.display = 'none';
-    }
-
-    // Текстовое содержимое
-    if (m.content) {
-      const content = document.createElement('div');
-      content.className = 'content';
-      content.innerHTML = renderMarkdownSafe(m.content);
-      makeLinksOpenInNewTab(content);
-      collapsibleContent.appendChild(content);
-    }
-
-    // SQL блок
-    if (m.sql) {
-      const sqlWrap = document.createElement('div');
-      sqlWrap.className = 'sql-wrap';
-      if (m.error) sqlWrap.classList.add('error');
-
-      const sqlHead = document.createElement('div');
-      sqlHead.className = 'sql-head';
-      sqlHead.innerHTML = `
-        <span>SQL Query</span>
-        <div class="sql-actions">
-          <button class="sql-btn">Copy SQL</button>
-          <button class="sql-btn">${m.sqlOpen ? 'Hide' : 'Show'}</button>
-        </div>
-      `;
-
-      const sqlBody = document.createElement('div');
-      sqlBody.className = 'sql-body';
-      sqlBody.style.display = m.sqlOpen ? 'block' : 'none';
-
-      const sqlPre = document.createElement('pre');
-      sqlPre.className = 'sql-pre';
-      const sqlCode = document.createElement('code');
-      sqlCode.className = 'language-sql';
-      sqlCode.textContent = m.sql;
-      sqlPre.appendChild(sqlCode);
-      sqlBody.appendChild(sqlPre);
-
-      // блок Params
-      if (m.params) {
-        const paramsPre = document.createElement("pre");
-        paramsPre.className = "sql-pre params-pre";
-        paramsPre.textContent = "Params:\n" + JSON.stringify(m.params, null, 2);
-        sqlBody.appendChild(paramsPre);
+      // ---------- Основной контент (то, что сворачивается) ----------
+      const collapsibleContent = document.createElement('div');
+      collapsibleContent.className = 'collapsible-content';
+      if (m.collapsed) {
+        collapsibleContent.style.display = 'none';
       }
 
-      sqlWrap.appendChild(sqlHead);
-      sqlWrap.appendChild(sqlBody);
-      collapsibleContent.appendChild(sqlWrap);
+      // Текстовое содержимое
+      if (m.content) {
+        const content = document.createElement('div');
+        content.className = 'content';
+        content.innerHTML = renderMarkdownSafe(m.content);
+        makeLinksOpenInNewTab(content);
+        collapsibleContent.appendChild(content);
+      }
 
-      // Кнопки SQL
-      const buttons = sqlHead.querySelectorAll('.sql-btn');
-      buttons[0].onclick = () => copyToClipboard(m.sql);
-      buttons[1].onclick = () => {
-        m.sqlOpen = !m.sqlOpen;
+      // SQL блок
+      if (m.sql) {
+        const sqlWrap = document.createElement('div');
+        sqlWrap.className = 'sql-wrap';
+        if (m.error) sqlWrap.classList.add('error');
+
+        const sqlHead = document.createElement('div');
+        sqlHead.className = 'sql-head';
+        sqlHead.innerHTML = `
+          <span>SQL Query</span>
+          <div class="sql-actions">
+            <button class="sql-btn">Copy SQL</button>
+            <button class="sql-btn">${m.sqlOpen ? 'Hide' : 'Show'}</button>
+          </div>
+        `;
+
+        const sqlBody = document.createElement('div');
+        sqlBody.className = 'sql-body';
         sqlBody.style.display = m.sqlOpen ? 'block' : 'none';
-        buttons[1].textContent = m.sqlOpen ? 'Hide' : 'Show';
-        saveState();
-      };
 
-      // Подсветка
-      if (typeof hljs !== 'undefined') {
-        hljs.highlightElement(sqlCode);
-      }
-    }
+        const sqlPre = document.createElement('pre');
+        sqlPre.className = 'sql-pre';
+        const sqlCode = document.createElement('code');
+        sqlCode.className = 'language-sql';
+        sqlCode.textContent = m.sql;
+        sqlPre.appendChild(sqlCode);
+        sqlBody.appendChild(sqlPre);
 
-    // Таблица
-    if (m.table && m.table.rows && m.table.rows.length > 0) {
-      const { columns, rows } = m.table;
-
-      const tableInfo = document.createElement('div');
-      tableInfo.className = 'table-info';
-      tableInfo.textContent = `Результат: ${rows.length} строк`;
-      if (m.error) tableInfo.classList.add('error');
-      collapsibleContent.appendChild(tableInfo);
-
-      const tblWrap = document.createElement('div');
-      tblWrap.className = 'tbl-wrap';
-
-      const tblHead = document.createElement('div');
-      tblHead.className = 'tbl-head';
-      tblHead.innerHTML = `
-        <span>Таблица (${rows.length} строк, ${columns.length} колонок)</span>
-        <button class="sql-btn">Copy CSV</button>
-      `;
-
-      const tblScroller = document.createElement('div');
-      tblScroller.className = 'tbl-scroller';
-
-      const table = document.createElement('table');
-      table.className = 'tbl';
-
-      const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      for (const col of columns) {
-        const th = document.createElement('th');
-        th.textContent = col;
-        headerRow.appendChild(th);
-      }
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
-
-      const tbody = document.createElement('tbody');
-      for (const row of rows) {
-        const tr = document.createElement('tr');
-        for (const col of columns) {
-          const td = document.createElement('td');
-          const value = row[col];
-          td.innerHTML = escapeCell(value, col, row);
-          tr.appendChild(td);
+        // блок Params
+        if (m.params) {
+          const paramsPre = document.createElement("pre");
+          paramsPre.className = "sql-pre params-pre";
+          paramsPre.textContent = "Params:\n" + JSON.stringify(m.params, null, 2);
+          sqlBody.appendChild(paramsPre);
         }
-        tbody.appendChild(tr);
+
+        sqlWrap.appendChild(sqlHead);
+        sqlWrap.appendChild(sqlBody);
+        collapsibleContent.appendChild(sqlWrap);
+
+        // Кнопки SQL
+        const buttons = sqlHead.querySelectorAll('.sql-btn');
+        buttons[0].onclick = () => copyToClipboard(m.sql);
+        buttons[1].onclick = () => {
+          m.sqlOpen = !m.sqlOpen;
+          sqlBody.style.display = m.sqlOpen ? 'block' : 'none';
+          buttons[1].textContent = m.sqlOpen ? 'Hide' : 'Show';
+          saveState();
+        };
+
+        // Подсветка
+        if (typeof hljs !== 'undefined') {
+          hljs.highlightElement(sqlCode);
+        }
       }
-      table.appendChild(tbody);
 
-      tblScroller.appendChild(table);
-      tblWrap.appendChild(tblHead);
-      tblWrap.appendChild(tblScroller);
-      collapsibleContent.appendChild(tblWrap);
+      // Таблица
+      if (m.table && m.table.rows && m.table.rows.length > 0) {
+        const { columns, rows } = m.table;
 
-      const csvBtn = tblHead.querySelector('.sql-btn');
-      csvBtn.onclick = () => {
-        const csv = toCsv(rows, columns);
-        copyToClipboard(csv);
-      };
-    }
+        const tableInfo = document.createElement('div');
+        tableInfo.className = 'table-info';
+        tableInfo.textContent = `Результат: ${rows.length} строк`;
+        if (m.error) tableInfo.classList.add('error');
+        collapsibleContent.appendChild(tableInfo);
 
-    // Добавляем основной контент в bubble
-    bubble.appendChild(collapsibleContent);
+        const tblWrap = document.createElement('div');
+        tblWrap.className = 'tbl-wrap';
 
-    // ---------- МЕТА-БЛОК (всегда виден, вне collapsible-content) ----------
-    const meta = document.createElement("div");
-    meta.className = "msg-meta";
-    let hasMeta = false;
+        const tblHead = document.createElement('div');
+        tblHead.className = 'tbl-head';
+        tblHead.innerHTML = `
+          <span>Таблица (${rows.length} строк, ${columns.length} колонок)</span>
+          <button class="sql-btn">Copy CSV</button>
+        `;
 
-    if (m.role === "user" && m.restRequestAt) {
-      const len = (m.content || "").length;
-      const tReq = formatTimeForMeta(m.restRequestAt);
-      const tResp = m.restResponseAt ? formatTimeForMeta(m.restResponseAt) : null;
-      const dur = m.restDurationMs != null ? formatDurationMs(m.restDurationMs) : null;
+        const tblScroller = document.createElement('div');
+        tblScroller.className = 'tbl-scroller';
 
-      const parts = [];
-      parts.push(`len: ${len}`);
-      parts.push(`REST: ${tReq}${tResp ? " → " + tResp : ""}`);
-      if (dur) parts.push(dur);
+        const table = document.createElement('table');
+        table.className = 'tbl';
 
-      meta.textContent = parts.join(" • ");
-      hasMeta = true;
-    }
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        for (const col of columns) {
+          const th = document.createElement('th');
+          th.textContent = col;
+          headerRow.appendChild(th);
+        }
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
 
-    if (m.role === "assistant" && (m.restRequestAt || m.restResponseAt)) {
-      const isTable = !!m.table;
-      const len = isTable ? null : (m.content || "").length;
-      const tReq = m.restRequestAt ? formatTimeForMeta(m.restRequestAt) : null;
-      const tResp = m.restResponseAt ? formatTimeForMeta(m.restResponseAt) : null;
-      const dur = m.restDurationMs != null ? formatDurationMs(m.restDurationMs) : null;
+        const tbody = document.createElement('tbody');
+        for (const row of rows) {
+          const tr = document.createElement('tr');
+          for (const col of columns) {
+            const td = document.createElement('td');
+            const value = row[col];
+            td.innerHTML = escapeCell(value, col, row);
+            tr.appendChild(td);
+          }
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
 
-      const parts = [];
-      if (!isTable && len) parts.push(`len: ${len}`);
-      if (tReq) parts.push(`REST start: ${tReq}`);
-      if (tResp) parts.push(`REST end: ${tResp}`);
-      if (dur) parts.push(`REST: ${dur}`);
+        tblScroller.appendChild(table);
+        tblWrap.appendChild(tblHead);
+        tblWrap.appendChild(tblScroller);
+        collapsibleContent.appendChild(tblWrap);
 
-      if (parts.length) {
+        const csvBtn = tblHead.querySelector('.sql-btn');
+        csvBtn.onclick = () => {
+          const csv = toCsv(rows, columns);
+          copyToClipboard(csv);
+        };
+      }
+
+      // Добавляем основной контент в bubble
+      bubble.appendChild(collapsibleContent);
+
+      // ---------- МЕТА-БЛОК (всегда виден, вне collapsible-content) ----------
+      const meta = document.createElement("div");
+      meta.className = "msg-meta";
+      let hasMeta = false;
+
+      if (m.role === "user" && m.restRequestAt) {
+        const len = (m.content || "").length;
+        const tReq = formatTimeForMeta(m.restRequestAt);
+        const tResp = m.restResponseAt ? formatTimeForMeta(m.restResponseAt) : null;
+        const dur = m.restDurationMs != null ? formatDurationMs(m.restDurationMs) : null;
+
+        const parts = [];
+        parts.push(`len: ${len}`);
+        parts.push(`REST: ${tReq}${tResp ? " → " + tResp : ""}`);
+        if (dur) parts.push(dur);
+
         meta.textContent = parts.join(" • ");
         hasMeta = true;
       }
+
+      if (m.role === "assistant" && (m.restRequestAt || m.restResponseAt)) {
+        const isTable = !!m.table;
+        const len = isTable ? null : (m.content || "").length;
+        const tReq = m.restRequestAt ? formatTimeForMeta(m.restRequestAt) : null;
+        const tResp = m.restResponseAt ? formatTimeForMeta(m.restResponseAt) : null;
+        const dur = m.restDurationMs != null ? formatDurationMs(m.restDurationMs) : null;
+
+        const parts = [];
+        if (!isTable && len) parts.push(`len: ${len}`);
+        if (tReq) parts.push(`REST start: ${tReq}`);
+        if (tResp) parts.push(`REST end: ${tResp}`);
+        if (dur) parts.push(`REST: ${dur}`);
+
+        if (parts.length) {
+          meta.textContent = parts.join(" • ");
+          hasMeta = true;
+        }
+      }
+
+      if (hasMeta) {
+        bubble.appendChild(meta);
+      }
+
+      // завершение
+      msg.appendChild(role);
+      msg.appendChild(bubble);
+      messagesContainer.appendChild(msg);
     }
 
-    if (hasMeta) {
-      bubble.appendChild(meta);
-    }
+    // по умолчанию — скроллим в конец (для новых сообщений)
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-    // завершение
-    msg.appendChild(role);
-    msg.appendChild(bubble);
-    messagesContainer.appendChild(msg);
+    // ⭐ после рендера — выравниваем кнопки по верхней видимой строке
+    requestAnimationFrame(() => adjustHoverOffsets());
   }
 
-  // Прокрутка к последнему сообщению
-  messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
+  // ⭐ Выравнивание кнопок по верхнему краю видимой части сообщения
+  function adjustHoverOffsets() {
+    const messagesContainer = document.querySelector('.messages');
+    if (!messagesContainer) return;
 
+    const msgs = messagesContainer.querySelectorAll('.msg');
+    msgs.forEach(msg => {
+      const bubble = msg.querySelector('.bubble');
+      const controls = bubble?.querySelector('.hover-controls');
+      if (!bubble || !controls) return;
 
-function toggleMessage(messageId) {
-  const currentChat = getActiveChat();
-  if (!currentChat) return;
+      // ищем первый видимый дочерний блок (кроме самих hover-controls)
+      const children = Array.from(bubble.children).filter(
+        node => !node.classList.contains('hover-controls')
+      );
 
-  const message = currentChat.messages.find(m => m.id === messageId);
-  if (!message) return;
+      let target = null;
+      for (const node of children) {
+        // offsetParent === null у элементов display:none
+        if (node.offsetParent !== null) {
+          target = node;
+          break;
+        }
+      }
+      if (!target) return;
 
-  // Переключаем только это сообщение
-  message.collapsed = !message.collapsed;
+      const offset = target.offsetTop; // относительно bubble (position:relative)
+      controls.style.top = offset + "px";
+    });
+  }
 
-  // Проверяем, есть ли хоть один развернутый ассистент
-  const anyExpanded = currentChat.messages.some(
-    (m, idx) => idx > 0 && m.role === "assistant" && !m.collapsed
-  );
+  function toggleMessage(messageId) {
+    const currentChat = getActiveChat();
+    if (!currentChat) return;
 
-  // Обновляем глобальный флаг "все свернуты"
-  allCollapsed = !anyExpanded;
+    const message = currentChat.messages.find(m => m.id === messageId);
+    if (!message) return;
 
-  // Обновляем подпись на глобальной кнопке
-  toggleAllBtn.textContent = allCollapsed ? "+" : "−";
-  toggleAllBtn.title = allCollapsed
-    ? "Развернуть все сообщения"
-    : "Свернуть все сообщения";
+    // Переключаем только это сообщение
+    message.collapsed = !message.collapsed;
 
-  saveState();
-  renderMessages();
+    // Проверяем, есть ли хоть один развернутый ассистент
+    const anyExpanded = currentChat.messages.some(
+      (m, idx) => idx > 0 && m.role === "assistant" && !m.collapsed
+    );
 
-  // 🔽 После перерендера скроллим к началу этого сообщения
-  requestAnimationFrame(() => {
-    const node = document.querySelector(`.msg[data-id="${messageId}"]`);
-    if (node) {
-      node.scrollIntoView({
-        block: "start",
-        inline: "nearest",
-        behavior: "auto"   // можно "smooth" если хочешь плавно
-      });
-    }
-  });
-}
+    // Обновляем глобальный флаг "все свернуты"
+    allCollapsed = !anyExpanded;
 
+    // Обновляем подпись на глобальной кнопке
+    toggleAllBtn.textContent = allCollapsed ? "+" : "−";
+    toggleAllBtn.title = allCollapsed
+      ? "Развернуть все сообщения"
+      : "Свернуть все сообщения";
 
-function renderAll() {
+    saveState();
+    renderMessages();
+
+    // 🔽 После перерендера скроллим к началу этого сообщения
+    requestAnimationFrame(() => {
+      const node = document.querySelector(`.msg[data-id="${messageId}"]`);
+      if (node) {
+        node.scrollIntoView({
+          block: "start",
+          inline: "nearest",
+          behavior: "auto"   // можно "smooth" если хочешь плавно
+        });
+      }
+    });
+  }
+
+  function renderAll() {
     renderChatList();
     renderMessages();
   }
 
   /** ---------- Actions ---------- **/
-function deleteMessage(chatId, messageId) {
-  const chat = state.chats.find(c => c.id === chatId);
-  if (!chat) return;
+  function deleteMessage(chatId, messageId) {
+    const chat = state.chats.find(c => c.id === chatId);
+    if (!chat) return;
 
-  const msgIndex = chat.messages.findIndex(m => m.id === messageId);
-  if (msgIndex === -1 || msgIndex === 0) return;
+    // ⭐ сохраняем текущий scrollTop, чтобы не улетать в конец
+    const prevScrollTop = messagesEl?.scrollTop ?? 0;
 
-  if (chat.messages[msgIndex].role === "user" &&
-      msgIndex + 1 < chat.messages.length &&
-      chat.messages[msgIndex + 1].role === "assistant") {
-    chat.messages.splice(msgIndex, 2);
-  } else if (chat.messages[msgIndex].role === "assistant" &&
-             msgIndex > 0 &&
-             chat.messages[msgIndex - 1].role === "user") {
-    chat.messages.splice(msgIndex - 1, 2);
-  } else {
-    chat.messages.splice(msgIndex, 1);
+    const msgIndex = chat.messages.findIndex(m => m.id === messageId);
+    if (msgIndex === -1 || msgIndex === 0) return;
+
+    if (chat.messages[msgIndex].role === "user" &&
+        msgIndex + 1 < chat.messages.length &&
+        chat.messages[msgIndex + 1].role === "assistant") {
+      chat.messages.splice(msgIndex, 2);
+    } else if (chat.messages[msgIndex].role === "assistant" &&
+               msgIndex > 0 &&
+               chat.messages[msgIndex - 1].role === "user") {
+      chat.messages.splice(msgIndex - 1, 2);
+    } else {
+      chat.messages.splice(msgIndex, 1);
+    }
+
+    saveState();
+    renderMessages();
+
+    // ⭐ возвращаемся к прежнему положению скролла
+    requestAnimationFrame(() => {
+      if (messagesEl) {
+        messagesEl.scrollTop = prevScrollTop;
+      }
+    });
   }
-
-  saveState();
-  renderMessages();
-}
 
   function deleteChat(chatId) {
     const idx = state.chats.findIndex(c => c.id === chatId);
@@ -1000,232 +1040,229 @@ function deleteMessage(chatId, messageId) {
     }
   });
 
-composerForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
+  composerForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  if (isGenerating && currentAbortController) {
-    currentAbortController.abort();
-    return;
-  }
-
-  const rawText = promptInput.value || "";
-  const text = normalizeUserMessage(rawText);
-  if (!text) return;
-
-  const chat = getActiveChat();
-  if (chat.title === "New chat") chat.title = text.slice(0, 40);
-
-  // userMsg — теперь отдельный объект, чтобы сохранить на нём тайминги REST
-  const userMsg = {
-    id: crypto.randomUUID(),
-    role: "user",
-    content: text
-  };
-  chat.messages.push(userMsg);
-
-  const assistantMsg = {
-    id: crypto.randomUUID(),
-    role: "assistant",
-    content: "",
-    sql: "",
-    params: null,
-    sqlOpen: false,
-    error: false,
-
-    table: null,
-    csv: null
-  };
-
-  chat.messages.push(assistantMsg);
-
-  promptInput.value = "";
-  promptInput.style.height = "auto";
-  promptInput.style.overflowY = "hidden";
-  autoGrow(promptInput);
-
-  saveState();
-  renderAll();
-
-  currentAbortController = new AbortController();
-  setGenerating(true);
-  setOverlay(true);
-
-  try {
-    // передаём ещё и userMsg
-    await fakeStreamAnswer(text, assistantMsg, userMsg, currentAbortController.signal);
-  } catch (err) {
-    if (err?.name !== "AbortError") {
-      assistantMsg.error = true;
-      assistantMsg.content += `\n\n⚠️ Error: ${err?.message || err}`;
-      renderMessages();
-    }
-  } finally {
-    setGenerating(false);
-    setOverlay(false);
-    currentAbortController = null;
-    saveState();
-    renderMessages();
-  }
-});
-
-
-function formatExecuteResult(result) {
-  if (typeof result === "string") return result;
-  if (!Array.isArray(result)) return JSON.stringify(result, null, 2);
-  if (result.length === 0) return "Результат: пустой массив";
-
-  return result
-    .map((row, idx) => {
-      if (typeof row !== "object" || row === null) {
-        return result.length === 1
-          ? String(row)
-          : `${idx + 1}) ${String(row)}`;
-      }
-
-      const lines = [];
-
-      for (const [key, value] of Object.entries(row)) {
-        // 🟦 массив словарей
-        if (
-          Array.isArray(value) &&
-          value.length > 0 &&
-          value.every(v => typeof v === "object" && v !== null && !Array.isArray(v))
-        ) {
-          lines.push(`  **${key}**:`);
-          value.forEach((obj, subIdx) => {
-            lines.push(`    ${subIdx + 1})`);
-            for (const [subKey, subValue] of Object.entries(obj)) {
-              lines.push(
-                `      **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
-              );
-            }
-            lines.push("");
-          });
-        }
-        // 🟩 одиночный словарь
-        else if (value && typeof value === "object" && !Array.isArray(value)) {
-          lines.push(`  **${key}**:`);
-          for (const [subKey, subValue] of Object.entries(value)) {
-            lines.push(
-              `    **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
-            );
-          }
-        }
-        // обычное поле
-        else {
-          lines.push(
-            `  **${key}**: ${value === null ? "null" : String(value)}`
-          );
-        }
-      }
-
-      return result.length === 1
-        ? lines.join("\n")
-        : `${idx + 1})\n${lines.join("\n")}`;
-    })
-    .join("\n\n");
-}
-
-
-async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) {
-  try {
-    // --- тайминги REST-запроса к URL_rest (fetchSqlText) ---
-    const restStart = new Date();
-    const t0 = performance.now();
-
-    // сохраняем время начала REST-запроса
-    assistantMsg.restRequestAt = restStart.toISOString();
-    if (userMsg) userMsg.restRequestAt = assistantMsg.restRequestAt;
-
-    const response = await fetchSqlText(userText, { signal });
-
-    const restEnd = new Date();
-    const durationMs = Math.round(performance.now() - t0);
-
-    // сохраняем время окончания и длительность
-    assistantMsg.restResponseAt = restEnd.toISOString();
-    assistantMsg.restDurationMs = durationMs;
-
-    if (userMsg) {
-      userMsg.restResponseAt = assistantMsg.restResponseAt;
-      userMsg.restDurationMs = durationMs;
-    }
-
-    let sqlText = "";
-    let params = null;
-
-    if (response && typeof response === "object") {
-      sqlText = typeof response.sql === "string" ? response.sql : "";
-      params = response.params ?? null;
-    }
-
-    if (!sqlText) throw new Error("SQL not generated");
-
-    assistantMsg.sql = sqlText;
-    assistantMsg.params = params;
-    renderMessages();
-
-    const encodedToken = await getEncodedAdminToken({ signal });
-
-    let executeResult;
-    try {
-      executeResult = await executeSqlViaApi(
-        { sqlText, params, token: encodedToken },
-        { signal }
-      );
-    } catch (execErr) {
-      assistantMsg.error = true;
-      assistantMsg.content = "❌ Ошибка выполнения SQL\n\n" + (execErr?.message || String(execErr));
-      renderMessages();
+    if (isGenerating && currentAbortController) {
+      currentAbortController.abort();
       return;
     }
 
-    setOverlay(false);
+    const rawText = promptInput.value || "";
+    const text = normalizeUserMessage(rawText);
+    if (!text) return;
 
-    if (isArrayOfObjects(executeResult)) {
-      const rows = executeResult;
-      const columns = getColumnsFromRows(rows);
+    const chat = getActiveChat();
+    if (chat.title === "New chat") chat.title = text.slice(0, 40);
 
-      // Проверяем, есть ли "сложные" колонки: словарь или массив словарей
-      const hasComplex = rows.some(r =>
-        r && Object.values(r).some(v =>
-          (
-            Array.isArray(v) &&
-            v.length > 0 &&
-            v.every(o => o && typeof o === "object" && !Array.isArray(o))
-          ) ||
-          (
-            v && typeof v === "object" && !Array.isArray(v)
-          )
-        )
-      );
+    // userMsg — теперь отдельный объект, чтобы сохранить на нём тайминги REST
+    const userMsg = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: text
+    };
+    chat.messages.push(userMsg);
 
-      // Показываем таблицу только если:
-      // 1) нет сложных структур (массивов словарей / словарей)
-      // 2) колонок не больше MAX_TABLE_COLS
-      // 3) строк больше 1
-      if (!hasComplex && columns.length > 0 && columns.length <= MAX_TABLE_COLS && rows.length > 1) {
-        assistantMsg.table = { columns, rows };
-        assistantMsg.csv = toCsv(rows, columns);
-        assistantMsg.content = `✅ Result rendered as table (${rows.length} rows, ${columns.length} cols).`;
-        assistantMsg.hasTable = true;
+    const assistantMsg = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "",
+      sql: "",
+      params: null,
+      sqlOpen: false,
+      error: false,
+
+      table: null,
+      csv: null
+    };
+
+    chat.messages.push(assistantMsg);
+
+    promptInput.value = "";
+    promptInput.style.height = "auto";
+    promptInput.style.overflowY = "hidden";
+    autoGrow(promptInput);
+
+    saveState();
+    renderAll();
+
+    currentAbortController = new AbortController();
+    setGenerating(true);
+    setOverlay(true);
+
+    try {
+      // передаём ещё и userMsg
+      await fakeStreamAnswer(text, assistantMsg, userMsg, currentAbortController.signal);
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        assistantMsg.error = true;
+        assistantMsg.content += `\n\n⚠️ Error: ${err?.message || err}`;
+        renderMessages();
+      }
+    } finally {
+      setGenerating(false);
+      setOverlay(false);
+      currentAbortController = null;
+      saveState();
+      renderMessages();
+    }
+  });
+
+  function formatExecuteResult(result) {
+    if (typeof result === "string") return result;
+    if (!Array.isArray(result)) return JSON.stringify(result, null, 2);
+    if (result.length === 0) return "Результат: пустой массив";
+
+    return result
+      .map((row, idx) => {
+        if (typeof row !== "object" || row === null) {
+          return result.length === 1
+            ? String(row)
+            : `${idx + 1}) ${String(row)}`;
+        }
+
+        const lines = [];
+
+        for (const [key, value] of Object.entries(row)) {
+          // 🟦 массив словарей
+          if (
+            Array.isArray(value) &&
+            value.length > 0 &&
+            value.every(v => typeof v === "object" && v !== null && !Array.isArray(v))
+          ) {
+            lines.push(`  **${key}**:`);
+            value.forEach((obj, subIdx) => {
+              lines.push(`    ${subIdx + 1})`);
+              for (const [subKey, subValue] of Object.entries(obj)) {
+                lines.push(
+                  `      **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
+                );
+              }
+              lines.push("");
+            });
+          }
+          // 🟩 одиночный словарь
+          else if (value && typeof value === "object" && !Array.isArray(value)) {
+            lines.push(`  **${key}**:`);
+            for (const [subKey, subValue] of Object.entries(value)) {
+              lines.push(
+                `    **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
+              );
+            }
+          }
+          // обычное поле
+          else {
+            lines.push(
+              `  **${key}**: ${value === null ? "null" : String(value)}`
+            );
+          }
+        }
+
+        return result.length === 1
+          ? lines.join("\n")
+          : `${idx + 1})\n${lines.join("\n")}`;
+      })
+      .join("\n\n");
+  }
+
+  async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) {
+    try {
+      // --- тайминги REST-запроса к URL_rest (fetchSqlText) ---
+      const restStart = new Date();
+      const t0 = performance.now();
+
+      // сохраняем время начала REST-запроса
+      assistantMsg.restRequestAt = restStart.toISOString();
+      if (userMsg) userMsg.restRequestAt = assistantMsg.restRequestAt;
+
+      const response = await fetchSqlText(userText, { signal });
+
+      const restEnd = new Date();
+      const durationMs = Math.round(performance.now() - t0);
+
+      // сохраняем время окончания и длительность
+      assistantMsg.restResponseAt = restEnd.toISOString();
+      assistantMsg.restDurationMs = durationMs;
+
+      if (userMsg) {
+        userMsg.restResponseAt = assistantMsg.restResponseAt;
+        userMsg.restDurationMs = durationMs;
+      }
+
+      let sqlText = "";
+      let params = null;
+
+      if (response && typeof response === "object") {
+        sqlText = typeof response.sql === "string" ? response.sql : "";
+        params = response.params ?? null;
+      }
+
+      if (!sqlText) throw new Error("SQL not generated");
+
+      assistantMsg.sql = sqlText;
+      assistantMsg.params = params;
+      renderMessages();
+
+      const encodedToken = await getEncodedAdminToken({ signal });
+
+      let executeResult;
+      try {
+        executeResult = await executeSqlViaApi(
+          { sqlText, params, token: encodedToken },
+          { signal }
+        );
+      } catch (execErr) {
+        assistantMsg.error = true;
+        assistantMsg.content = "❌ Ошибка выполнения SQL\n\n" + (execErr?.message || String(execErr));
         renderMessages();
         return;
       }
+
+      setOverlay(false);
+
+      if (isArrayOfObjects(executeResult)) {
+        const rows = executeResult;
+        const columns = getColumnsFromRows(rows);
+
+        // Проверяем, есть ли "сложные" колонки: словарь или массив словарей
+        const hasComplex = rows.some(r =>
+          r && Object.values(r).some(v =>
+            (
+              Array.isArray(v) &&
+              v.length > 0 &&
+              v.every(o => o && typeof o === "object" && !Array.isArray(o))
+            ) ||
+            (
+              v && typeof v === "object" && !Array.isArray(v)
+            )
+          )
+        );
+
+        // Показываем таблицу только если:
+        // 1) нет сложных структур (массивов словарей / словарей)
+        // 2) колонок не больше MAX_TABLE_COLS
+        // 3) строк больше 1
+        if (!hasComplex && columns.length > 0 && columns.length <= MAX_TABLE_COLS && rows.length > 1) {
+          assistantMsg.table = { columns, rows };
+          assistantMsg.csv = toCsv(rows, columns);
+          assistantMsg.content = `✅ Result rendered as table (${rows.length} rows, ${columns.length} cols).`;
+          assistantMsg.hasTable = true;
+          renderMessages();
+          return;
+        }
+      }
+
+      // Во всех остальных случаях показываем как текстовый список
+      const answerText = formatExecuteResult(executeResult);
+      assistantMsg.content = answerText;
+      renderMessages();
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      assistantMsg.error = true;
+      assistantMsg.content = "❌ Ошибка при подготовке запроса\n\n" + (error?.message || String(error));
+      renderMessages();
     }
-
-
-    // Во всех остальных случаях показываем как текстовый список
-    const answerText = formatExecuteResult(executeResult);
-    assistantMsg.content = answerText;
-    renderMessages();
-  } catch (error) {
-    if (error?.name === "AbortError") return;
-    assistantMsg.error = true;
-    assistantMsg.content = "❌ Ошибка при подготовке запроса\n\n" + (error?.message || String(error));
-    renderMessages();
   }
-}
 
   /** ---------- Token crypto helpers ---------- **/
   function base64UrlDecodeToString(b64url) {
@@ -1330,85 +1367,82 @@ async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) {
     return "w4bCi8KcwpPClsKOW1lawqfCtMOcw5vDi8OYw5FNWcKZwpXCuMOSw6DCi8KYwoxDwp7CsMKhwrTDm8OXw5zCjsKmQVtqYn_CmcKfwpnCncKZUm5YYX7Co8KnwpvCpsKgVltkUW3DnsOlw47DnsKOW1lawqTDgMOZw5fDm8ONw5DCjsKiwqZTw4g=";
   }
 
-// Функция глобального сворачивания/разворачивания
-// Функция глобального сворачивания/разворачивания
-function toggleAllMessages() {
-  const chat = getActiveChat();
-  if (!chat) return;
+  // Функция глобального сворачивания/разворачивания
+  function toggleAllMessages() {
+    const chat = getActiveChat();
+    if (!chat) return;
 
-  // новое глобальное состояние
-  const next = !allCollapsed;
-  allCollapsed = next;
+    // новое глобальное состояние
+    const next = !allCollapsed;
+    allCollapsed = next;
 
-  // Проставляем collapsed всем ассистентским сообщениям (кроме первого приветственного)
-  chat.messages.forEach((m, idx) => {
-    if (idx === 0) return;
-    if (m.role === "assistant") {
-      m.collapsed = next;
-    }
-  });
+    // Проставляем collapsed всем ассистентским сообщениям (кроме первого приветственного)
+    chat.messages.forEach((m, idx) => {
+      if (idx === 0) return;
+      if (m.role === "assistant") {
+        m.collapsed = next;
+      }
+    });
 
-  // Обновляем кнопку
-  toggleAllBtn.textContent = next ? "+" : "−";
-  toggleAllBtn.title = next ? "Развернуть все сообщения" : "Свернуть все сообщения";
+    // Обновляем кнопку
+    toggleAllBtn.textContent = next ? "+" : "−";
+    toggleAllBtn.title = next ? "Развернуть все сообщения" : "Свернуть все сообщения";
 
-  saveState();
-  renderMessages();
-}
+    saveState();
+    renderMessages();
+  }
 
+  // Добавляем обработчик события
+  toggleAllBtn?.addEventListener("click", toggleAllMessages);
 
-// Добавляем обработчик события
-toggleAllBtn?.addEventListener("click", toggleAllMessages);
+  function formatTimeForMeta(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleTimeString();
+  }
 
-function formatTimeForMeta(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  // Если хочешь строго HH:MM:SS:
-  return d.toLocaleTimeString(); // можно заменить на свой формат
-}
+  function formatDurationMs(ms) {
+    if (ms == null) return "";
+    if (ms < 1000) return `${ms} ms`;
+    return (ms / 1000).toFixed(2) + " s";
+  }
 
-function formatDurationMs(ms) {
-  if (ms == null) return "";
-  if (ms < 1000) return `${ms} ms`;
-  return (ms / 1000).toFixed(2) + " s";
-}
+  function linkify(text) {
+    if (!text) return text;
 
-function linkify(text) {
-  if (!text) return text;
+    const urlRegex = /(https?:\/\/[^\s)]+)|((?<!\/)www\.[^\s)]+)/gi;
 
-  const urlRegex = /(https?:\/\/[^\s)]+)|((?<!\/)www\.[^\s)]+)/gi;
+    return text.replace(urlRegex, (rawUrl) => {
+      const url = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
+      return `<a href="${url}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="table-link">${rawUrl}</a>`;
+    });
+  }
 
-  return text.replace(urlRegex, (rawUrl) => {
-    const url = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
-    return `<a href="${url}"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="table-link">${rawUrl}</a>`;
-  });
-}
-
-function makeLinksOpenInNewTab(root) {
-  if (!root) return;
-  const links = root.querySelectorAll('a[href]');
-  links.forEach(a => {
-    const href = a.getAttribute('href') || '';
-    // Только для http/https — чтобы не трогать якоря, mailto и т.п.
-    if (href.startsWith('http://') || href.startsWith('https://')) {
-      a.setAttribute('target', '_blank');
-      a.setAttribute('rel', 'noopener noreferrer');
-      a.classList.add('table-link'); // чтобы был такой же стиль, как в таблице
-    }
-  });
-}
+  function makeLinksOpenInNewTab(root) {
+    if (!root) return;
+    const links = root.querySelectorAll('a[href]');
+    links.forEach(a => {
+      const href = a.getAttribute('href') || '';
+      // Только для http/https — чтобы не трогать якоря, mailto и т.п.
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener noreferrer');
+        a.classList.add('table-link'); // чтобы был такой же стиль, как в таблице
+      }
+    });
+  }
 
   /** ---------- Init bindings ---------- **/
-    scrollToEndBtn?.addEventListener("click", () => {
-      scrollToBottom();
-    });
+  scrollToEndBtn?.addEventListener("click", () => {
+    scrollToBottom();
+  });
 
-    scrollToTopBtn?.addEventListener("click", () => {
-      scrollToTop();
-    });
+  scrollToTopBtn?.addEventListener("click", () => {
+    scrollToTop();
+  });
 
   newChatBtn?.addEventListener("click", newChat);
   clearBtn?.addEventListener("click", clearMessages);
@@ -1419,5 +1453,3 @@ function makeLinksOpenInNewTab(root) {
 
   promptInput.focus();
 });
-
-
