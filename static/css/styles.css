@@ -883,3 +883,13 @@
 [data-theme="light"] .table-link:visited {
   color: #7c3aed;
 }
+
+.msg-meta {
+  margin-top: 4px;
+  font-size: 12px;       /* ← уменьшили */
+  line-height: 1;
+  opacity: 0.55;         /* более тихий вид */
+  user-select: text;
+  cursor: default;
+  font-family: monospace; /* мелкие цифры удобнее читать */
+}

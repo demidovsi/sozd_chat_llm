@@ -755,9 +755,9 @@ function renderMessages() {
       const dur = m.restDurationMs != null ? formatDurationMs(m.restDurationMs) : null;
 
       const parts = [];
-      if (tReq) parts.push(`REST start: ${tReq}`);
-      if (tResp) parts.push(`REST end: ${tResp}`);
-      if (dur) parts.push(`REST: ${dur}`);
+      if (tReq) parts.push(`start: ${tReq}`);
+      if (tResp) parts.push(`end: ${tResp}`);
+      if (dur) parts.push(`duration: ${dur}`);
 
       meta.textContent = parts.join(" • ");
       collapsibleContent.appendChild(meta);
