@@ -13,7 +13,8 @@
  */
 const config = {
   kirill: "wqzDi8OVw43DjcOOwoTCncKZwpM=",
-  URL: "http://159.223.0.234:5000/",
+  URL: "https://159.223.0.234:5001/",
+//  URL: "http://159.223.0.234:5000/",
 //  URL_rest: "http://159.223.0.234:5050/"
 //  URL_rest: "https://159.223.0.234:5051/"
   URL_rest: "http://localhost:5050/"
@@ -117,25 +118,32 @@ function getColumnsFromRows(rows) {
   return Array.from(set);
 }
 
+// Обновляем функцию escapeCell для обработки URL
 function escapeCell(v, column, row) {
-  if (v === null || v === undefined) return "";
+  if (v == null) return "<em>null</em>";
+  if (v === "") return "<em>empty</em>";
 
-  // Если колонка содержит точку - это развернутый ключ словаря
-  if (typeof column === "string" && column.includes(".")) {
-    const [mainKey, subKey] = column.split(".", 2);
-    const mainValue = row?.[mainKey];
-    if (mainValue && typeof mainValue === "object" && !Array.isArray(mainValue)) {
-      const subValue = mainValue[subKey];
-      if (subValue === null || subValue === undefined) return "";
-      if (typeof subValue === "object") return JSON.stringify(subValue);
-      return String(subValue);
-    }
-    return "";
+  const str = String(v);
+
+  // Проверяем, является ли значение URL
+  if (isUrl(str)) {
+    const escapedUrl = escapeHtml(str);
+    return `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer" class="table-link" title="Открыть в новом окне">${escapedUrl}</a>`;
   }
 
-  if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
+  return escapeHtml(str);
 }
+
+// Функция для определения URL
+function isUrl(string) {
+  try {
+    const url = new URL(string);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 
 function toCsv(rows, columns) {
   const esc = (s) => {
@@ -239,7 +247,7 @@ async function fetchSqlText(userText, { signal } = {}) {
 
   // Создаем собственный AbortController с timeout 60 секунд
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 секунд
+  const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 секунд
 
   // Если передан внешний signal, слушаем его тоже
   if (signal) {
