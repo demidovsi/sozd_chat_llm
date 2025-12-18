@@ -659,6 +659,17 @@ function renderMessages() {
       sqlPre.appendChild(sqlCode);
       sqlBody.appendChild(sqlPre);
 
+      // ---- PARAMS block ----
+    if (m.params) {
+      const paramsPre = document.createElement("pre");
+      paramsPre.className = "sql-pre params-pre";
+
+      // красиво форматируем JSON
+      paramsPre.textContent = "Params:\n" + JSON.stringify(m.params, null, 2);
+
+      sqlBody.appendChild(paramsPre);
+    }
+
       sqlWrap.appendChild(sqlHead);
       sqlWrap.appendChild(sqlBody);
       collapsibleContent.appendChild(sqlWrap);
@@ -1024,52 +1035,62 @@ composerForm.addEventListener("submit", async (e) => {
 });
 
 
-  function formatExecuteResult(result) {
+function formatExecuteResult(result) {
   if (typeof result === "string") return result;
   if (!Array.isArray(result)) return JSON.stringify(result, null, 2);
   if (result.length === 0) return "Результат: пустой массив";
 
-  if (typeof result[0] === "object" && result[0] !== null) {
-    return result
-      .map((row, idx) => {
-        const flattenedRow = {};
+  return result
+    .map((row, idx) => {
+      const prefix =
+        result.length === 1 ? "" : `${idx + 1})\n`;
 
-        // Разворачиваем словари в отдельные поля
-        Object.entries(row).forEach(([key, value]) => {
-          if (value && typeof value === "object" && !Array.isArray(value)) {
-            // Если значение - словарь, разворачиваем его ключи
-            Object.entries(value).forEach(([subKey, subValue]) => {
-              flattenedRow[`${key}.${subKey}`] = subValue;
-            });
-          } else {
-            flattenedRow[key] = value;
-          }
-        });
+      if (typeof row !== "object" || row === null) {
+        return result.length === 1
+          ? String(row)
+          : `${idx + 1}) ${String(row)}`;
+      }
 
-        const lines = Object.entries(flattenedRow).map(
-          ([key, value]) => {
-            const displayValue = value === null ? "null" : String(value);
-            // Всегда выделяем ключи жирным (и для одной строки, и для нескольких)
-            return `  **${key}**: ${displayValue}`;
-          }
-        );
+      const lines = [];
 
-        // Убираем порядковый номер если запись только одна
-        if (result.length === 1) {
-          return lines.join("\n");
+      for (const [key, value] of Object.entries(row)) {
+        // 🟦 массив словарей
+        if (
+          Array.isArray(value) &&
+          value.length > 0 &&
+          value.every(v => typeof v === "object" && v !== null && !Array.isArray(v))
+        ) {
+          lines.push(`  **${key}**:`);
+
+          value.forEach((obj, subIdx) => {
+            lines.push(
+              result.length === 1
+                ? `    ${subIdx + 1})`
+                : `    ${subIdx + 1})`
+            );
+            for (const [subKey, subValue] of Object.entries(obj)) {
+              lines.push(
+                `      **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
+              );
+            }
+            lines.push("");
+          });
         }
-        return `${idx + 1})\n${lines.join("\n")}`;
-      })
-      .join("\n\n");
-  }
+        else {
+          lines.push(
+            `  **${key}**: ${value === null ? "null" : String(value)}`
+          );
+        }
+      }
 
-  // Для простых значений тоже убираем номер если элемент один
-  if (result.length === 1) {
-    return String(result[0]);
-  }
-
-  return result.map((value, idx) => `${idx + 1}) ${String(value)}`).join("\n");
+      return result.length === 1
+        ? lines.join("\n")
+        : `${idx + 1})\n${lines.join("\n")}`;
+    })
+    .join("\n\n");
 }
+
+
 
 async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) {
   try {
