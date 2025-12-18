@@ -606,3 +606,12 @@ html[data-theme="dark"] pre code.hljs {
   box-shadow: 0 0 0 3px rgba(34,197,94,.14);
 }
 
+.msg.assistant .content strong {
+  color: #007acc; /* синий цвет */
+  font-weight: bold;
+}
+
+/* Для темной темы */
+[data-theme="dark"] .msg.assistant .content strong {
+  color: #4fc3f7; /* светло-синий для темной темы */
+}
