@@ -320,6 +320,9 @@ async function executeSqlViaApi({ sqlText, params, token }, { signal } = {}) {
 
 /** ---------- App ---------- **/
 document.addEventListener("DOMContentLoaded", () => {
+  const startTime = performance.now();
+  console.log('DOM loaded, starting initialization...');
+
   const chatListEl = el("chatList");
   const messagesEl = el("messages");
   const chatTitleEl = el("chatTitle");
@@ -473,18 +476,20 @@ function setUiBusy(on) {
 
         const finish = (commit) => {
           if (commit) {
-            const next = (input.value || "").trim() || "Untitled";
-            chat.title = next;
-            saveState();
+            const newTitle = input.value.trim() || "Untitled";
+            if (newTitle !== current) {
+              chat.title = newTitle;
+              saveState();
 
-            // если это активный чат — обновляем заголовок сверху
-            if (chat.id === state.activeChatId) {
-                renderChatTitle();
+              // ⭐ Обновляем заголовок, если это активный чат
+              if (chat.id === state.activeChatId && chatTitleEl) {
+                chatTitleEl.textContent = newTitle;
+              }
             }
           }
 
           name.textContent = chat.title || "Untitled";
-          // НЕ вызываем renderAll() чтобы не сбросить фокус
+          name.removeChild(input);
         };
 
         input.addEventListener("keydown", (e) => {
@@ -835,7 +840,7 @@ function setUiBusy(on) {
       msg.appendChild(bubble);
       messagesContainer.appendChild(msg);
     }
-
+    updateChatTitleWithStats();
     // по умолчанию — скроллим в конец (для новых сообщений)
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
@@ -847,14 +852,33 @@ function setUiBusy(on) {
   function renderAll() {
     renderChatList();
     renderMessages();
-
     // обновляем заголовок активного чата
-    const active = getActiveChat();
-    if (chatTitleEl) {
-      chatTitleEl.textContent = active?.title || "New chat";
-    }
+    updateChatTitleWithStats();
+    updateToggleAllButton(); // ⭐ Обновляем состояние кнопки при смене чата
   }
 
+function getChatStats(chat) {
+  if (!chat || !chat.messages) return "";
+  if (!chat || !chat.messages) return "";
+
+  // Считаем сообщения (исключая первое приветственное)
+  const userMessages = chat.messages.filter((m, idx) => idx > 0 && m.role === "user");
+  const assistantMessages = chat.messages.filter((m, idx) => idx > 0 && m.role === "assistant");
+
+  // Общая длина всех сообщений
+  const totalLength = chat.messages.reduce((sum, m) => {
+    return sum + (m.content?.length || 0) + (m.sql?.length || 0);
+  }, 0);
+
+  // Форматируем длину
+  const formatLength = (len) => {
+    if (len < 1000) return `${len} chars`;
+    if (len < 1000000) return `${(len / 1000).toFixed(1)}K chars`;
+    return `${(len / 1000000).toFixed(1)}M chars`;
+  };
+
+  return `${userMessages.length} U • ${assistantMessages.length} A • ${formatLength(totalLength)}`;
+}
 
   // ⭐ Выравнивание кнопок по верхнему краю видимой части сообщения
   function adjustHoverOffsets() {
@@ -894,25 +918,13 @@ function setUiBusy(on) {
     const message = currentChat.messages.find(m => m.id === messageId);
     if (!message) return;
 
-    // Переключаем только это сообщение
     message.collapsed = !message.collapsed;
-
-    // Проверяем, есть ли хоть один развернутый ассистент
-    const anyExpanded = currentChat.messages.some(
-      (m, idx) => idx > 0 && m.role === "assistant" && !m.collapsed
-    );
-
-    // Обновляем глобальный флаг "все свернуты"
-    allCollapsed = !anyExpanded;
-
-    // Обновляем подпись на глобальной кнопке
-    toggleAllBtn.textContent = allCollapsed ? "+" : "−";
-    toggleAllBtn.title = allCollapsed
-      ? "Развернуть все сообщения"
-      : "Свернуть все сообщения";
 
     saveState();
     renderMessages();
+
+    // ⭐ Обновляем кнопку после изменения состояния сообщения
+    updateToggleAllButton();
 
     // После перерендера скроллим к началу этого сообщения
     requestAnimationFrame(() => {
@@ -932,9 +944,8 @@ function setUiBusy(on) {
     withUiBusy(toggleMessageInternal)(messageId);
   }
 
-
   /** ---------- Actions ---------- **/
-  function deleteMessage(chatId, messageId) {
+function deleteMessage(chatId, messageId) {
     const chat = state.chats.find(c => c.id === chatId);
     if (!chat) return;
 
@@ -965,7 +976,23 @@ function setUiBusy(on) {
         messagesEl.scrollTop = prevScrollTop;
       }
     });
+
+    // ⭐ Обновляем статистику в заголовке
+    updateChatTitleWithStats();
+}
+
+// Создайте отдельную функцию для обновления статистики
+function updateChatTitleWithStats() {
+  const active = getActiveChat();
+  if (chatTitleEl && active) {
+    const stats = getChatStats(active);
+    chatTitleEl.innerHTML = `
+      <div class="chat-title-main">${active.title || "New chat"}</div>
+      <div class="chat-title-stats">${stats}</div>
+    `;
   }
+  updateGlobalStats();
+}
 
   function deleteChat(chatId) {
     const idx = state.chats.findIndex(c => c.id === chatId);
@@ -1487,6 +1514,72 @@ function setUiBusy(on) {
     });
   }
 
+// Функция для обновления состояния глобальной кнопки
+function updateToggleAllButton() {
+  const chat = getActiveChat();
+  if (!chat || !toggleAllBtn) return;
+
+  // Проверяем, есть ли хоть один развернутый ассистент (кроме первого приветственного)
+  const anyExpanded = chat.messages.some(
+    (m, idx) => idx > 0 && m.role === "assistant" && !m.collapsed
+  );
+
+  // Обновляем глобальный флаг
+  allCollapsed = !anyExpanded;
+
+  // Обновляем кнопку
+  toggleAllBtn.textContent = allCollapsed ? "+" : "−";
+  toggleAllBtn.title = allCollapsed
+    ? "Развернуть все сообщения"
+    : "Свернуть все сообщения";
+}
+// Функция для подсчёта размера в байтах
+function getMemorySize(text) {
+  if (!text) return 0;
+  return new Blob([text]).size;
+}
+
+// Обновлённая функция форматирования размера
+const formatSize = (bytes) => {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+};
+
+function getChatStats(chat) {
+  if (!chat || !chat.messages) return "";
+
+  // Считаем сообщения (исключая первое приветственное)
+  const userMessages = chat.messages.filter((m, idx) => idx > 0 && m.role === "user");
+  const assistantMessages = chat.messages.filter((m, idx) => idx > 0 && m.role === "assistant");
+
+  // Общий размер всех сообщений в байтах
+  const totalSize = chat.messages.reduce((sum, m) => {
+    return sum + getMemorySize(m.content || '') + getMemorySize(m.sql || '');
+  }, 0);
+
+  return `${userMessages.length} U • ${assistantMessages.length} A • ${formatSize(totalSize)}`;
+}
+
+function updateGlobalStats() {
+  const userSubEl = document.querySelector('.user-sub');
+  if (!userSubEl || !state.chats) return;
+
+  const totalChats = state.chats.length;
+  let totalSize = 0;
+
+  // Считаем общий размер всех сообщений во всех чатах в байтах
+  state.chats.forEach(chat => {
+    if (chat.messages) {
+      totalSize += chat.messages.reduce((sum, m) => {
+        return sum + getMemorySize(m.content || '') + getMemorySize(m.sql || '');
+      }, 0);
+    }
+  });
+
+  userSubEl.textContent = `${totalChats} chats • ${formatSize(totalSize)}`;
+}
+
   /** ---------- Init bindings ---------- **/
   scrollToEndBtn?.addEventListener("click", () => {
     scrollToBottom();
@@ -1504,4 +1597,16 @@ function setUiBusy(on) {
   renderAll();
 
   promptInput.focus();
+
+  // В самом конце DOMContentLoaded
+  const endTime = performance.now();
+  console.log(`Total initialization time: ${(endTime - startTime).toFixed(2)}ms`);
+
+  // Проверьте размер localStorage
+  const storageSize = new Blob([JSON.stringify(localStorage)]).size;
+  console.log(`LocalStorage size: ${(storageSize / 1024).toFixed(2)} KB`);
+
+  // Количество чатов и сообщений
+  console.log(`Chats: ${state.chats.length}, Messages: ${state.chats.reduce((sum, c) => sum + c.messages.length, 0)}`);
+
 });
