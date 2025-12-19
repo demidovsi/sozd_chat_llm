@@ -4,7 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d28c8828-fae3-4454-82ec-43696340f014" name="Changes" comment="- кнопки копирования, сворачивания/разворачивания и удаления не в первой строке, а в первой видимой">
+    <list default="true" id="d28c8828-fae3-4454-82ec-43696340f014" name="Changes" comment="- нормальная версия">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/sozd_chat_llm.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sozd_chat_llm.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/static/js/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/js/app.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -51,7 +54,8 @@
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/AlteroSmart/Python/sozd_chat_llm&quot;
+    &quot;last_opened_file_path&quot;: &quot;D:/AlteroSmart/Python/sozd_chat_llm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
   }
 }</component>
   <component name="RecentsManager">
@@ -219,7 +223,15 @@
       <option name="project" value="LOCAL" />
       <updated>1766084689131</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="- нормальная версия">
+      <option name="closed" value="true" />
+      <created>1766157122098</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1766157122098</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -234,7 +246,8 @@
     <MESSAGE value="- при сворачивании сообщения остается строка с длиной и временами" />
     <MESSAGE value="- скроллинг при сворачивании и разворачивании" />
     <MESSAGE value="- кнопки копирования, сворачивания/разворачивания и удаления не в первой строке, а в первой видимой" />
-    <option name="LAST_COMMIT_MESSAGE" value="- кнопки копирования, сворачивания/разворачивания и удаления не в первой строке, а в первой видимой" />
+    <MESSAGE value="- нормальная версия" />
+    <option name="LAST_COMMIT_MESSAGE" value="- нормальная версия" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

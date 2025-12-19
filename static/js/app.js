@@ -32,6 +32,7 @@ let token_admin = null;
 let currentAbortController = null;
 let isGenerating = false;
 let lastUserMessageCache = "";
+let restSessionId = null;
 
 const scrollToEndBtn = el("scrollToEndBtn");
 const scrollToTopBtn = el("scrollToTopBtn");
@@ -247,13 +248,19 @@ function initTheme(themeSelect, themeToggleBtn) {
 async function fetchSqlText(userText, { signal } = {}) {
   const url = config.URL_rest + "sql/text";
 
-  // Создаем собственный AbortController с timeout 60 секунд
+  // Создаем собственный AbortController с timeout 90 секунд
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 секунд
 
   // Если передан внешний signal, слушаем его тоже
   if (signal) {
     signal.addEventListener('abort', () => controller.abort());
+  }
+
+  // Создаем URL с параметром session_id (если он определен)
+  const requestUrl = new URL(url);
+  if (restSessionId) {
+    requestUrl.searchParams.set('session_id', restSessionId);
   }
 
   const requestBody = {
@@ -265,7 +272,7 @@ async function fetchSqlText(userText, { signal } = {}) {
   };
 
   try {
-    const res = await fetch(url, {
+    const res = await fetch(requestUrl.toString(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
@@ -279,11 +286,19 @@ async function fetchSqlText(userText, { signal } = {}) {
       throw new Error(`HTTP ${res.status}: ${text}`);
     }
 
-    return await res.json();
+    const json = await res.json();
+
+    // Если в ответе пришёл session_id — запоминаем его для следующих запросов
+    if (json && typeof json === "object" && json.session_id) {
+      restSessionId = json.session_id;
+      console.log(`Session ID updated: ${restSessionId}`);
+    }
+
+    return json;
   } catch (error) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      throw new Error('Request timeout after 60 seconds');
+      throw new Error('Request timeout after 90 seconds');
     }
     throw error;
   }
