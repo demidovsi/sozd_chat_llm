@@ -16,6 +16,7 @@ const config = {
   URL: "https://159.223.0.234:5001/",
 //  URL: "http://159.223.0.234:5000/",
 //  URL_rest: "http://159.223.0.234:5050/"
+
 //  URL_rest: "https://159.223.0.234:5051/"
   URL_rest: "http://localhost:5050/"
 };
@@ -551,7 +552,7 @@ function setUiBusy(on) {
     }
   }
 
-  function renderMessages() {
+function renderMessages() {
     const messagesContainer = document.querySelector('.messages');
     if (!messagesContainer) return;
 
@@ -606,9 +607,7 @@ function setUiBusy(on) {
           if (m.role === 'user') {
             copyToClipboard(m.content);
           } else {
-            let text = '';
-            if (m.content) text += m.content + '\n\n';
-            if (m.sql) text += 'SQL:\n' + m.sql;
+            const text = m.content + (m.sql ? "\n\nSQL:\n" + buildSqlWithParams(m) : "");
             copyToClipboard(text);
           }
         };
@@ -683,7 +682,7 @@ function setUiBusy(on) {
         sqlHead.innerHTML = `
           <span>SQL Query</span>
           <div class="sql-actions">
-            <button class="sql-btn">Copy SQL</button>
+            <button class="sql-btn">Copy</button>
             <button class="sql-btn">${m.sqlOpen ? 'Hide' : 'Show'}</button>
           </div>
         `;
@@ -769,8 +768,7 @@ function setUiBusy(on) {
           const tr = document.createElement('tr');
           for (const col of columns) {
             const td = document.createElement('td');
-            const value = row[col];
-            td.innerHTML = escapeCell(value, col, row);
+            td.innerHTML = escapeCell(row?.[col], col, row);
             tr.appendChild(td);
           }
           tbody.appendChild(tr);
@@ -812,18 +810,28 @@ function setUiBusy(on) {
         hasMeta = true;
       }
 
-      if (m.role === "assistant" && (m.restRequestAt || m.restResponseAt)) {
+      if (m.role === "assistant" && (m.restRequestAt || m.executeRequestAt)) {
         const isTable = !!m.table;
         const len = isTable ? null : (m.content || "").length;
-        const tReq = m.restRequestAt ? formatTimeForMeta(m.restRequestAt) : null;
-        const tResp = m.restResponseAt ? formatTimeForMeta(m.restResponseAt) : null;
-        const dur = m.restDurationMs != null ? formatDurationMs(m.restDurationMs) : null;
 
         const parts = [];
         if (!isTable && len) parts.push(`len: ${len}`);
-        if (tReq) parts.push(`REST start: ${tReq}`);
-        if (tResp) parts.push(`REST end: ${tResp}`);
-        if (dur) parts.push(`REST: ${dur}`);
+
+        // REST тайминги
+        if (m.restRequestAt && m.restResponseAt) {
+          const tReq = formatTimeForMeta(m.restRequestAt);
+          const tResp = formatTimeForMeta(m.restResponseAt);
+          const dur = m.restDurationMs ? formatDurationMs(m.restDurationMs) : null;
+          parts.push(`REST: ${tReq} → ${tResp}${dur ? ` (${dur})` : ""}`);
+        }
+
+        // SQL execute тайминги
+        if (m.executeRequestAt && m.executeResponseAt) {
+          const tExecReq = formatTimeForMeta(m.executeRequestAt);
+          const tExecResp = formatTimeForMeta(m.executeResponseAt);
+          const execDur = m.executeDurationMs ? formatDurationMs(m.executeDurationMs) : null;
+          parts.push(`SQL: ${tExecReq} → ${tExecResp}${execDur ? ` (${execDur})` : ""}`);
+        }
 
         if (parts.length) {
           meta.textContent = parts.join(" • ");
@@ -1244,7 +1252,7 @@ function updateChatTitleWithStats() {
       .join("\n\n");
   }
 
-  async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) {
+async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) {
     try {
       // --- тайминги REST-запроса к URL_rest (fetchSqlText) ---
       const restStart = new Date();
@@ -1259,10 +1267,11 @@ function updateChatTitleWithStats() {
       const restEnd = new Date();
       const durationMs = Math.round(performance.now() - t0);
 
-      // сохраняем время окончания и длительность
+      // сохраняем время окончания и длительность REST для ассистента
       assistantMsg.restResponseAt = restEnd.toISOString();
       assistantMsg.restDurationMs = durationMs;
 
+      // для пользователя сохраняем только REST тайминги
       if (userMsg) {
         userMsg.restResponseAt = assistantMsg.restResponseAt;
         userMsg.restDurationMs = durationMs;
@@ -1284,13 +1293,32 @@ function updateChatTitleWithStats() {
 
       const encodedToken = await getEncodedAdminToken({ signal });
 
+      // --- тайминги SQL выполнения (только для ассистента) ---
+      const executeStart = new Date();
+      const executeT0 = performance.now();
+
+      assistantMsg.executeRequestAt = executeStart.toISOString();
+
       let executeResult;
       try {
         executeResult = await executeSqlViaApi(
           { sqlText, params, token: encodedToken },
           { signal }
         );
+
+        const executeEnd = new Date();
+        const executeDurationMs = Math.round(performance.now() - executeT0);
+
+        // сохраняем тайминги SQL выполнения только для ассистента
+        assistantMsg.executeResponseAt = executeEnd.toISOString();
+        assistantMsg.executeDurationMs = executeDurationMs;
+
       } catch (execErr) {
+        const executeEnd = new Date();
+        const executeDurationMs = Math.round(performance.now() - executeT0);
+
+        assistantMsg.executeResponseAt = executeEnd.toISOString();
+        assistantMsg.executeDurationMs = executeDurationMs;
         assistantMsg.error = true;
         assistantMsg.content = "❌ Ошибка выполнения SQL\n\n" + (execErr?.message || String(execErr));
         renderMessages();
@@ -1303,7 +1331,6 @@ function updateChatTitleWithStats() {
         const rows = executeResult;
         const columns = getColumnsFromRows(rows);
 
-        // Проверяем, есть ли "сложные" колонки: словарь или массив словарей
         const hasComplex = rows.some(r =>
           r && Object.values(r).some(v =>
             (
@@ -1311,16 +1338,10 @@ function updateChatTitleWithStats() {
               v.length > 0 &&
               v.every(o => o && typeof o === "object" && !Array.isArray(o))
             ) ||
-            (
-              v && typeof v === "object" && !Array.isArray(v)
-            )
+            (v && typeof v === "object" && !Array.isArray(v))
           )
         );
 
-        // Показываем таблицу только если:
-        // 1) нет сложных структур (массивов словарей / словарей)
-        // 2) колонок не больше MAX_TABLE_COLS
-        // 3) строк больше 1
         if (!hasComplex && columns.length > 0 && columns.length <= MAX_TABLE_COLS && rows.length > 1) {
           assistantMsg.table = { columns, rows };
           assistantMsg.csv = toCsv(rows, columns);
