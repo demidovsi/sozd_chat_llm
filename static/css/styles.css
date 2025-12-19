@@ -909,3 +909,22 @@
   top: 0; /* НЕ фиксированный top */
   transform: translateY(var(--hover-offset, 0));
 }
+.ui-busy {
+  position: fixed;
+  bottom: 12px;
+  right: 16px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 1000;
+}
+
+.ui-busy.active {
+  opacity: 0.9;
+}

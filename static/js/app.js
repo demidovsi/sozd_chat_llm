@@ -372,6 +372,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     return text;
   }
+  const uiBusyEl = el("uiBusy");
+
+function setUiBusy(on) {
+    // Берём элемент каждый раз — не важно, когда DOM загрузился
+    const elBusy = document.getElementById("uiBusy");
+    if (!elBusy) return;
+    elBusy.classList.toggle("active", !!on);
+}
+
+  // Обёртка для тяжёлых операций:
+  function withUiBusy(fn) {
+    return (...args) => {
+      if (!uiBusyEl) {
+        // если индикатора нет, просто выполняем
+        return fn(...args);
+      }
+
+      setUiBusy(true);
+
+      // Даём браузеру шанс нарисовать индикатор,
+      // а уже потом делаем тяжёлую работу
+      requestAnimationFrame(() => {
+        try {
+          fn(...args);
+        } finally {
+          setUiBusy(false);
+        }
+      });
+    };
+  }
 
   /** ---------- Rendering ---------- **/
   function renderMarkdownSafe(text) {
@@ -446,6 +476,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const next = (input.value || "").trim() || "Untitled";
             chat.title = next;
             saveState();
+
+            // если это активный чат — обновляем заголовок сверху
+            if (chat.id === state.activeChatId) {
+                renderChatTitle();
+            }
           }
 
           name.textContent = chat.title || "Untitled";
@@ -486,23 +521,26 @@ document.addEventListener("DOMContentLoaded", () => {
       item.appendChild(meta);
       item.appendChild(del);
 
-      item.addEventListener("click", (e) => {
-        // Проверяем, что клик НЕ по кнопке удаления
-        if (e.target.closest('.icon-btn')) return;
-        // Проверяем, является ли цель клика заголовком чата или его содержимым
-        if (e.target.id === 'chatTitle' || e.target.closest('#chatTitle')) return;
+        item.addEventListener("click", (e) => {
+            // НЕ по кнопке удаления
+            if (e.target.closest('.icon-btn')) return;
+            // Не по заголовку chatTitle справа
+            if (e.target.id === 'chatTitle' || e.target.closest('#chatTitle')) return;
+            // Не двойной клик (редактирование)
+            if (e.detail === 2) return;
+            // Уже активный чат — ничего не делаем
+            if (chat.id === state.activeChatId) return;
 
-        // Проверяем, что это НЕ двойной клик
-        if (e.detail === 2) return;
+            const run = () => {
+              state.activeChatId = chat.id;
+              saveState();
+              renderAll();
+              requestAnimationFrame(() => promptInput.focus());
+            };
 
-        // Если чат уже активен, не переключаем
-        if (chat.id === state.activeChatId) return;
-
-        state.activeChatId = chat.id;
-        saveState();
-        renderAll();
-        requestAnimationFrame(() => promptInput.focus());
+            withUiBusy(run)();
       });
+
 
       chatListEl.appendChild(item);
     }
@@ -805,6 +843,19 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(() => adjustHoverOffsets());
   }
 
+
+  function renderAll() {
+    renderChatList();
+    renderMessages();
+
+    // обновляем заголовок активного чата
+    const active = getActiveChat();
+    if (chatTitleEl) {
+      chatTitleEl.textContent = active?.title || "New chat";
+    }
+  }
+
+
   // ⭐ Выравнивание кнопок по верхнему краю видимой части сообщения
   function adjustHoverOffsets() {
     const messagesContainer = document.querySelector('.messages');
@@ -836,7 +887,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function toggleMessage(messageId) {
+    function toggleMessageInternal(messageId) {
     const currentChat = getActiveChat();
     if (!currentChat) return;
 
@@ -863,23 +914,24 @@ document.addEventListener("DOMContentLoaded", () => {
     saveState();
     renderMessages();
 
-    // 🔽 После перерендера скроллим к началу этого сообщения
+    // После перерендера скроллим к началу этого сообщения
     requestAnimationFrame(() => {
       const node = document.querySelector(`.msg[data-id="${messageId}"]`);
       if (node) {
         node.scrollIntoView({
           block: "start",
           inline: "nearest",
-          behavior: "auto"   // можно "smooth" если хочешь плавно
+          behavior: "auto"
         });
       }
     });
   }
 
-  function renderAll() {
-    renderChatList();
-    renderMessages();
+  // Внешняя функция, которая используется в onClick
+  function toggleMessage(messageId) {
+    withUiBusy(toggleMessageInternal)(messageId);
   }
+
 
   /** ---------- Actions ---------- **/
   function deleteMessage(chatId, messageId) {
@@ -1393,7 +1445,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Добавляем обработчик события
-  toggleAllBtn?.addEventListener("click", toggleAllMessages);
+  toggleAllBtn?.addEventListener("click", withUiBusy(toggleAllMessages));
 
   function formatTimeForMeta(iso) {
     if (!iso) return "";

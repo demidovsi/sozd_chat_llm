@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d28c8828-fae3-4454-82ec-43696340f014" name="Changes" comment="- рефакторинг">
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/css/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/static/css/styles.css" afterDir="false" />
+    <list default="true" id="d28c8828-fae3-4454-82ec-43696340f014" name="Changes" comment="- кнопки копирования, сворачивания/разворачивания и удаления не в первой строке, а в первой видимой">
       <change beforePath="$PROJECT_DIR$/static/js/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/js/app.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -141,13 +139,102 @@
       <option name="project" value="LOCAL" />
       <updated>1766061016780</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="- рефакторинг">
+      <option name="closed" value="true" />
+      <created>1766074192474</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1766074192474</updated>
+    </task>
+    <task id="LOCAL-00006" summary="- вставлено время задания вопроса, получения ответа и длительность обработки">
+      <option name="closed" value="true" />
+      <created>1766077089936</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1766077089936</updated>
+    </task>
+    <task id="LOCAL-00007" summary="- изменен вид выводимых времен и размер с цветом">
+      <option name="closed" value="true" />
+      <created>1766077423844</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1766077423844</updated>
+    </task>
+    <task id="LOCAL-00008" summary="- в тексте и в таблице ссылки открываются в новом окне">
+      <option name="closed" value="true" />
+      <created>1766077940164</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1766077940164</updated>
+    </task>
+    <task id="LOCAL-00009" summary="- добавлена кнопка удаления в поле вопроса, которая удаляет вопрос и ответ">
+      <option name="closed" value="true" />
+      <created>1766078278951</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1766078278951</updated>
+    </task>
+    <task id="LOCAL-00010" summary="- восстановлен вывод params для текста sql запроса">
+      <option name="closed" value="true" />
+      <created>1766081042474</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1766081042474</updated>
+    </task>
+    <task id="LOCAL-00011" summary="- восстановлен вывод ячейки, которая json">
+      <option name="closed" value="true" />
+      <created>1766082017833</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1766082017833</updated>
+    </task>
+    <task id="LOCAL-00012" summary="- при сворачивании сообщения остается строка с длиной и временами">
+      <option name="closed" value="true" />
+      <created>1766082322477</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1766082322477</updated>
+    </task>
+    <task id="LOCAL-00013" summary="- скроллинг при сворачивании и разворачивании">
+      <option name="closed" value="true" />
+      <created>1766083409097</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1766083409097</updated>
+    </task>
+    <task id="LOCAL-00014" summary="- кнопки копирования, сворачивания/разворачивания и удаления не в первой строке, а в первой видимой">
+      <option name="closed" value="true" />
+      <created>1766084689131</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1766084689131</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="начальный комит" />
     <MESSAGE value="- рефакторинг" />
-    <option name="LAST_COMMIT_MESSAGE" value="- рефакторинг" />
+    <MESSAGE value="- вставлено время задания вопроса, получения ответа и длительность обработки" />
+    <MESSAGE value="- изменен вид выводимых времен и размер с цветом" />
+    <MESSAGE value="- в тексте и в таблице ссылки открываются в новом окне" />
+    <MESSAGE value="- добавлена кнопка удаления в поле вопроса, которая удаляет вопрос и ответ" />
+    <MESSAGE value="- восстановлен вывод params для текста sql запроса" />
+    <MESSAGE value="- восстановлен вывод ячейки, которая json" />
+    <MESSAGE value="- при сворачивании сообщения остается строка с длиной и временами" />
+    <MESSAGE value="- скроллинг при сворачивании и разворачивании" />
+    <MESSAGE value="- кнопки копирования, сворачивания/разворачивания и удаления не в первой строке, а в первой видимой" />
+    <option name="LAST_COMMIT_MESSAGE" value="- кнопки копирования, сворачивания/разворачивания и удаления не в первой строке, а в первой видимой" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
