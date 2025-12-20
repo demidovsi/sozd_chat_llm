@@ -1,0 +1,857 @@
+/**
+ * Модуль рендеринга интерфейса
+ */
+
+import { state, saveState, getActiveChat } from './state.js';
+import { copyToClipboard, makeLinksOpenInNewTab, isArrayOfObjects, getColumnsFromRows } from './utils.js';
+import { escapeCell, toCsv, formatTimeForMeta, formatDurationMs, formatExecuteResult } from './formatters.js';
+import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy } from './ui.js';
+import { updateChatTitleWithStats } from './actions.js';
+import { fetchSqlText, executeSqlViaApi } from './api.js';
+import { getEncodedAdminToken } from './crypto.js';
+import { MAX_TABLE_COLS } from './config.js';
+
+// ============================================================================
+// Глобальные элементы DOM (устанавливаются через setElements)
+// ============================================================================
+
+let chatListEl = null;      // Контейнер списка чатов
+let messagesEl = null;       // Контейнер сообщений
+let chatTitleEl = null;      // Элемент заголовка чата
+let searchInputEl = null;    // Поле поиска чатов
+let promptInput = null;      // Поле ввода сообщения
+
+/**
+ * Устанавливает ссылки на DOM элементы для использования в модуле
+ * @param {Object} elements - Объект с ссылками на DOM элементы
+ * @param {HTMLElement} elements.chatListEl - Контейнер списка чатов
+ * @param {HTMLElement} elements.messagesEl - Контейнер сообщений
+ * @param {HTMLElement} elements.chatTitleEl - Элемент заголовка чата
+ * @param {HTMLElement} elements.searchInputEl - Поле поиска
+ * @param {HTMLElement} elements.promptInput - Поле ввода
+ */
+export function setElements(elements) {
+  chatListEl = elements.chatListEl;
+  messagesEl = elements.messagesEl;
+  chatTitleEl = elements.chatTitleEl;
+  searchInputEl = elements.searchInputEl;
+  promptInput = elements.promptInput;
+}
+
+// ============================================================================
+// Внутренние функции для работы с сообщениями
+// ============================================================================
+
+/**
+ * Удаляет сообщение из чата
+ * Если удаляется user-сообщение, удаляется также следующее assistant-сообщение
+ * Если удаляется assistant-сообщение, удаляется также предыдущее user-сообщение
+ * Сохраняет текущую позицию скролла
+ *
+ * @param {string} chatId - ID чата
+ * @param {string} messageId - ID сообщения для удаления
+ */
+function deleteMessage(chatId, messageId) {
+  const chat = state.chats.find(c => c.id === chatId);
+  if (!chat) return;
+
+  const prevScrollTop = messagesEl?.scrollTop ?? 0;
+
+  const msgIndex = chat.messages.findIndex(m => m.id === messageId);
+  if (msgIndex === -1 || msgIndex === 0) return;
+
+  if (chat.messages[msgIndex].role === "user" &&
+      msgIndex + 1 < chat.messages.length &&
+      chat.messages[msgIndex + 1].role === "assistant") {
+    chat.messages.splice(msgIndex, 2);
+  } else if (chat.messages[msgIndex].role === "assistant" &&
+             msgIndex > 0 &&
+             chat.messages[msgIndex - 1].role === "user") {
+    chat.messages.splice(msgIndex - 1, 2);
+  } else {
+    chat.messages.splice(msgIndex, 1);
+  }
+
+  saveState();
+  renderMessagesInternal();
+
+  requestAnimationFrame(() => {
+    if (messagesEl) {
+      messagesEl.scrollTop = prevScrollTop;
+    }
+  });
+
+  updateChatTitleWithStats(chatTitleEl);
+}
+
+/**
+ * Внутренняя функция для сворачивания/разворачивания сообщения
+ * Переключает состояние collapsed у сообщения и прокручивает к нему
+ *
+ * @param {string} messageId - ID сообщения для переключения
+ */
+function toggleMessageInternal(messageId) {
+  const currentChat = getActiveChat();
+  if (!currentChat) return;
+
+  const message = currentChat.messages.find(m => m.id === messageId);
+  if (!message) return;
+
+  message.collapsed = !message.collapsed;
+
+  saveState();
+  renderMessagesInternal();
+
+  updateToggleAllButton();
+
+  requestAnimationFrame(() => {
+    const node = document.querySelector(`.msg[data-id="${messageId}"]`);
+    if (node) {
+      node.scrollIntoView({
+        block: "start",
+        inline: "nearest",
+        behavior: "auto"
+      });
+    }
+  });
+}
+
+/**
+ * Переключает состояние сворачивания/разворачивания сообщения с UI индикатором загрузки
+ *
+ * @param {string} messageId - ID сообщения для переключения
+ */
+function toggleMessage(messageId) {
+  withUiBusy(toggleMessageInternal)(messageId);
+}
+
+/**
+ * Удаляет чат из списка
+ * Если удаляется последний чат, создается новый
+ * Если удаляется активный чат, активируется первый чат из списка
+ *
+ * @param {string} chatId - ID чата для удаления
+ */
+function deleteChat(chatId) {
+  const idx = state.chats.findIndex(c => c.id === chatId);
+  if (idx === -1) return;
+
+  state.chats.splice(idx, 1);
+
+  if (!state.chats.length) {
+    const chat = {
+      id: crypto.randomUUID(),
+      title: "New chat",
+      createdAt: Date.now(),
+      messages: [
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "Привет! Это демо-интерфейс. Напиши сообщение снизу — я отвечу (через fetchSqlText + v2/execute)."
+        }
+      ]
+    };
+    state.chats.push(chat);
+    state.activeChatId = chat.id;
+  } else if (state.activeChatId === chatId) {
+    state.activeChatId = state.chats[0].id;
+  }
+
+  saveState();
+  renderAllInternal();
+}
+
+/**
+ * Обновляет состояние глобальной кнопки сворачивания/разворачивания всех сообщений
+ * Анализирует текущий чат и устанавливает соответствующий текст и состояние кнопки
+ *
+ * @returns {boolean} - true если все сообщения свернуты, false иначе
+ */
+function updateToggleAllButton() {
+  const toggleAllBtn = document.getElementById("toggleAllBtn");
+  const chat = getActiveChat();
+  if (!chat || !toggleAllBtn) return false;
+
+  const anyExpanded = chat.messages.some(
+    (m, idx) => idx > 0 && m.role === "assistant" && !m.collapsed
+  );
+
+  const allCollapsed = !anyExpanded;
+
+  toggleAllBtn.textContent = allCollapsed ? "+" : "−";
+  toggleAllBtn.title = allCollapsed
+    ? "Развернуть все сообщения"
+    : "Свернуть все сообщения";
+
+  return allCollapsed;
+}
+
+// ============================================================================
+// Публичные функции рендеринга
+// ============================================================================
+
+/**
+ * Рендерит список чатов в боковой панели
+ *
+ * Отображает все чаты с учетом:
+ * - Поискового запроса (фильтрация по названию и последнему сообщению)
+ * - Сортировки по дате создания (новые сверху)
+ * - Выделения активного чата
+ * - Возможности редактирования названия по двойному клику
+ * - Превью последнего сообщения
+ * - Кнопки удаления чата
+ */
+export function renderChatList() {
+  const q = (searchInputEl?.value || "").trim().toLowerCase();
+
+  chatListEl.innerHTML = "";
+  const chats = state.chats
+    .slice()
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .filter(c => {
+      if (!q) return true;
+      const hay = (c.title + " " + (c.messages.at(-1)?.content || "")).toLowerCase();
+      return hay.includes(q);
+    });
+
+  for (const chat of chats) {
+    const last = chat.messages.at(-1)?.content || "";
+    const item = document.createElement("div");
+    item.className = "chat-item" + (chat.id === state.activeChatId ? " active" : "");
+    item.role = "listitem";
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = chat.title || "Untitled";
+
+    // Добавляем обработчик двойного клика для редактирования прямо в списке
+    name.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      console.log('dblclick на чате в списке:', chat.title);
+
+      // Если уже в режиме редактирования — выходим
+      if (name.querySelector("input")) return;
+
+      const current = chat.title || "";
+      name.innerHTML = "";
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = current;
+      input.className = "chat-title-input";
+      input.style.width = "100%";
+      input.style.fontSize = "inherit";
+      input.style.fontFamily = "inherit";
+
+      name.appendChild(input);
+      input.focus();
+      input.select();
+
+      const finish = (commit) => {
+        if (commit) {
+          const newTitle = input.value.trim() || "Untitled";
+          if (newTitle !== current) {
+            chat.title = newTitle;
+            saveState();
+
+            // ⭐ Обновляем заголовок, если это активный чат
+            if (chat.id === state.activeChatId && chatTitleEl) {
+              chatTitleEl.textContent = newTitle;
+            }
+          }
+        }
+
+        name.textContent = chat.title || "Untitled";
+        name.removeChild(input);
+      };
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          finish(true);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          finish(false);
+        }
+      });
+
+      input.addEventListener("blur", () => {
+        finish(true);
+      });
+    });
+
+    const preview = document.createElement("div");
+    preview.className = "preview";
+    preview.textContent = last.replace(/\s+/g, " ").slice(0, 80);
+
+    meta.appendChild(name);
+    meta.appendChild(preview);
+
+    const del = document.createElement("button");
+    del.className = "icon-btn";
+    del.title = "Delete chat";
+    del.textContent = "🗑";
+    del.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteChat(chat.id);
+    });
+
+    item.appendChild(meta);
+    item.appendChild(del);
+
+    item.addEventListener("click", (e) => {
+      // НЕ по кнопке удаления
+      if (e.target.closest('.icon-btn')) return;
+      // Не по заголовку chatTitle справа
+      if (e.target.id === 'chatTitle' || e.target.closest('#chatTitle')) return;
+      // Не двойной клик (редактирование)
+      if (e.detail === 2) return;
+      // Уже активный чат — ничего не делаем
+      if (chat.id === state.activeChatId) return;
+
+      const run = () => {
+        state.activeChatId = chat.id;
+        saveState();
+        renderAll();
+        requestAnimationFrame(() => promptInput.focus());
+      };
+
+      withUiBusy(run)();
+    });
+
+    chatListEl.appendChild(item);
+  }
+}
+
+/**
+ * Внутренняя функция рендеринга сообщений (без UI блокировки)
+ * Используется для внутренних вызовов, где блокировка не нужна
+ */
+function renderMessagesInternal() {
+  const messagesContainer = document.querySelector('.messages');
+  if (!messagesContainer) return;
+
+  const currentChat = getActiveChat();
+  if (!currentChat) return;
+
+  messagesContainer.innerHTML = '';
+
+  for (const m of currentChat.messages) {
+    const msg = document.createElement('div');
+    msg.className = `msg ${m.role}`;
+    msg.dataset.id = m.id;
+    if (m.error) msg.classList.add('error');
+
+    // Role icon
+    const role = document.createElement('div');
+    role.className = 'role';
+    role.textContent = m.role === 'user' ? 'U' : 'A';
+
+    // Message bubble
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.style.position = 'relative'; // Для позиционирования кнопок
+
+    // ---------- Hover-контролы (Copy + Delete / Toggle) ----------
+    if ((m.role === 'assistant' && (m.content || m.sql)) || (m.role === 'user' && m.content)) {
+      const topControls = document.createElement('div');
+      topControls.className = 'hover-controls';
+      topControls.style.cssText = `
+        position: sticky;
+        top: 0;
+        right: 8px;
+        margin-top: 4px;
+        display: flex;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        z-index: 10;
+        background: var(--bg);
+        border-radius: 4px;
+        padding: 2px;
+        width: max-content;
+        margin-left: auto;
+      `;
+
+      // Кнопка копирования
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-btn icon-btn';
+      copyBtn.textContent = 'Copy';
+      copyBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
+      copyBtn.onclick = () => {
+        if (m.role === 'user') {
+          copyToClipboard(m.content);
+        } else {
+          const text = m.content + (m.sql ? "\n\nSQL:\n" + buildSqlWithParams(m) : "");
+          copyToClipboard(text);
+        }
+      };
+      topControls.appendChild(copyBtn);
+
+      // Кнопки управления для ассистента
+      if (m.role === 'assistant') {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'toggle-msg-btn icon-btn';
+        toggleBtn.textContent = m.collapsed ? '+' : '−';
+        toggleBtn.title = m.collapsed ? 'Развернуть' : 'Свернуть';
+        toggleBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
+        toggleBtn.onclick = () => toggleMessage(m.id);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-msg-btn icon-btn';
+        deleteBtn.textContent = '❌';
+        deleteBtn.title = 'Удалить';
+        deleteBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
+        deleteBtn.onclick = () => deleteMessage(currentChat.id, m.id);
+
+        topControls.appendChild(toggleBtn);
+        topControls.appendChild(deleteBtn);
+      }
+      // Кнопка удаления для USER-сообщений
+      else if (m.role === 'user') {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-msg-btn icon-btn';
+        deleteBtn.textContent = '❌';
+        deleteBtn.title = 'Удалить вопрос и ответ';
+        deleteBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
+        deleteBtn.onclick = () => deleteMessage(currentChat.id, m.id);
+
+        topControls.appendChild(deleteBtn);
+      }
+
+      // Показываем/скрываем кнопки при наведении на сообщение
+      bubble.addEventListener('mouseenter', () => {
+        topControls.style.opacity = '1';
+      });
+      bubble.addEventListener('mouseleave', () => {
+        topControls.style.opacity = '0';
+      });
+
+      bubble.appendChild(topControls);
+    }
+
+    // ---------- Основной контент (то, что сворачивается) ----------
+    const collapsibleContent = document.createElement('div');
+    collapsibleContent.className = 'collapsible-content';
+    if (m.collapsed) {
+      collapsibleContent.style.display = 'none';
+    }
+
+    // Текстовое содержимое
+    if (m.content) {
+      const content = document.createElement('div');
+      content.className = 'content';
+      content.innerHTML = renderMarkdownSafe(m.content);
+      makeLinksOpenInNewTab(content);
+      collapsibleContent.appendChild(content);
+    }
+
+    // SQL блок
+    if (m.sql) {
+      const sqlWrap = document.createElement('div');
+      sqlWrap.className = 'sql-wrap';
+      if (m.error) sqlWrap.classList.add('error');
+
+      const sqlHead = document.createElement('div');
+      sqlHead.className = 'sql-head';
+      sqlHead.innerHTML = `
+        <span>SQL Query</span>
+        <div class="sql-actions">
+          <button class="sql-btn">Copy</button>
+          <button class="sql-btn">${m.sqlOpen ? 'Hide' : 'Show'}</button>
+        </div>
+      `;
+
+      const sqlBody = document.createElement('div');
+      sqlBody.className = 'sql-body';
+      sqlBody.style.display = m.sqlOpen ? 'block' : 'none';
+
+      const sqlPre = document.createElement('pre');
+      sqlPre.className = 'sql-pre';
+      const sqlCode = document.createElement('code');
+      sqlCode.className = 'language-sql';
+      sqlCode.textContent = m.sql;
+      sqlPre.appendChild(sqlCode);
+      sqlBody.appendChild(sqlPre);
+
+      // блок Params
+      if (m.params) {
+        const paramsPre = document.createElement("pre");
+        paramsPre.className = "sql-pre params-pre";
+        paramsPre.textContent = "Params:\n" + JSON.stringify(m.params, null, 2);
+        sqlBody.appendChild(paramsPre);
+      }
+
+      sqlWrap.appendChild(sqlHead);
+      sqlWrap.appendChild(sqlBody);
+      collapsibleContent.appendChild(sqlWrap);
+
+      // Кнопки SQL
+      const buttons = sqlHead.querySelectorAll('.sql-btn');
+      buttons[0].onclick = () => copyToClipboard(m.sql);
+      buttons[1].onclick = () => {
+        m.sqlOpen = !m.sqlOpen;
+        sqlBody.style.display = m.sqlOpen ? 'block' : 'none';
+        buttons[1].textContent = m.sqlOpen ? 'Hide' : 'Show';
+        saveState();
+      };
+
+      // Подсветка
+      if (typeof hljs !== 'undefined') {
+        hljs.highlightElement(sqlCode);
+      }
+    }
+
+    // Таблица
+    if (m.table && m.table.rows && m.table.rows.length > 0) {
+      const { columns, rows } = m.table;
+
+      const tableInfo = document.createElement('div');
+      tableInfo.className = 'table-info';
+      tableInfo.textContent = `Результат: ${rows.length} строк`;
+      if (m.error) tableInfo.classList.add('error');
+      collapsibleContent.appendChild(tableInfo);
+
+      const tblWrap = document.createElement('div');
+      tblWrap.className = 'tbl-wrap';
+
+      const tblHead = document.createElement('div');
+      tblHead.className = 'tbl-head';
+      tblHead.innerHTML = `
+        <span>Таблица (${rows.length} строк, ${columns.length} колонок)</span>
+        <button class="sql-btn">Copy CSV</button>
+      `;
+
+      const tblScroller = document.createElement('div');
+      tblScroller.className = 'tbl-scroller';
+
+      const table = document.createElement('table');
+      table.className = 'tbl';
+
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      for (const col of columns) {
+        const th = document.createElement('th');
+        th.textContent = col;
+        headerRow.appendChild(th);
+      }
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      for (const row of rows) {
+        const tr = document.createElement('tr');
+        for (const col of columns) {
+          const td = document.createElement('td');
+          td.innerHTML = escapeCell(row?.[col], col, row);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+
+      tblScroller.appendChild(table);
+      tblWrap.appendChild(tblHead);
+      tblWrap.appendChild(tblScroller);
+      collapsibleContent.appendChild(tblWrap);
+
+      const csvBtn = tblHead.querySelector('.sql-btn');
+      csvBtn.onclick = () => {
+        const csv = toCsv(rows, columns);
+        copyToClipboard(csv);
+      };
+    }
+
+    // Добавляем основной контент в bubble
+    bubble.appendChild(collapsibleContent);
+
+    // ---------- МЕТА-БЛОК (всегда виден, вне collapsible-content) ----------
+    const meta = document.createElement("div");
+    meta.className = "msg-meta";
+    let hasMeta = false;
+
+    if (m.role === "user" && m.restRequestAt) {
+      const len = (m.content || "").length;
+      const tReq = formatTimeForMeta(m.restRequestAt);
+      const tResp = m.restResponseAt ? formatTimeForMeta(m.restResponseAt) : null;
+      const dur = m.restDurationMs != null ? formatDurationMs(m.restDurationMs) : null;
+
+      const parts = [];
+      parts.push(`len: ${len}`);
+      parts.push(`REST: ${tReq}${tResp ? " → " + tResp : ""}`);
+      if (dur) parts.push(dur);
+
+      meta.textContent = parts.join(" • ");
+      hasMeta = true;
+    }
+
+    if (m.role === "assistant" && (m.restRequestAt || m.executeRequestAt)) {
+      const isTable = !!m.table;
+      const len = isTable ? null : (m.content || "").length;
+
+      const parts = [];
+      if (!isTable && len) parts.push(`len: ${len}`);
+
+      // REST тайминги
+      if (m.restRequestAt && m.restResponseAt) {
+        const tReq = formatTimeForMeta(m.restRequestAt);
+        const tResp = formatTimeForMeta(m.restResponseAt);
+        const dur = m.restDurationMs ? formatDurationMs(m.restDurationMs) : null;
+        parts.push(`REST: ${tReq} → ${tResp}${dur ? ` (${dur})` : ""}`);
+      }
+
+      // SQL execute тайминги
+      if (m.executeRequestAt && m.executeResponseAt) {
+        const tExecReq = formatTimeForMeta(m.executeRequestAt);
+        const tExecResp = formatTimeForMeta(m.executeResponseAt);
+        const execDur = m.executeDurationMs ? formatDurationMs(m.executeDurationMs) : null;
+        parts.push(`SQL: ${tExecReq} → ${tExecResp}${execDur ? ` (${execDur})` : ""}`);
+      }
+
+      if (parts.length) {
+        meta.textContent = parts.join(" • ");
+        hasMeta = true;
+      }
+    }
+
+    if (hasMeta) {
+      bubble.appendChild(meta);
+    }
+
+    // завершение
+    msg.appendChild(role);
+    msg.appendChild(bubble);
+    messagesContainer.appendChild(msg);
+  }
+  updateChatTitleWithStats(chatTitleEl);
+  // по умолчанию — скроллим в конец (для новых сообщений)
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  // ⭐ после рендера — выравниваем кнопки по верхней видимой строке
+  requestAnimationFrame(() => adjustHoverOffsets());
+}
+
+/**
+ * Рендерит все сообщения активного чата с индикатором загрузки
+ *
+ * Отображает для каждого сообщения:
+ * - Иконку роли (User/Assistant)
+ * - Hover-контролы (копирование, удаление, сворачивание)
+ * - Текстовое содержимое с рендерингом Markdown
+ * - SQL запрос с подсветкой синтаксиса и параметрами
+ * - Таблицу результатов с возможностью экспорта в CSV
+ * - Метаданные (тайминги REST и SQL запросов)
+ *
+ * Во время рендеринга:
+ * - Показывает индикатор загрузки
+ * - Блокирует взаимодействие с UI
+ *
+ * После рендеринга:
+ * - Обновляет заголовок чата со статистикой
+ * - Скроллит к концу сообщений
+ * - Выравнивает позицию hover-кнопок
+ */
+export function renderMessages() {
+  withUiBusy(renderMessagesInternal)();
+}
+
+/**
+ * Внутренняя функция полного рендеринга (без UI блокировки)
+ * Используется для внутренних вызовов
+ */
+function renderAllInternal() {
+  renderChatList();
+  renderMessagesInternal();
+  // обновляем заголовок активного чата
+  updateChatTitleWithStats(chatTitleEl);
+  updateToggleAllButton(); // ⭐ Обновляем состояние кнопки при смене чата
+}
+
+/**
+ * Полный рендеринг интерфейса с индикатором загрузки
+ *
+ * Последовательно выполняет:
+ * - Рендеринг списка чатов (renderChatList)
+ * - Рендеринг сообщений активного чата (renderMessagesInternal)
+ * - Обновление заголовка чата со статистикой
+ * - Обновление состояния кнопки "свернуть все"
+ *
+ * Во время рендеринга:
+ * - Показывает индикатор загрузки
+ * - Блокирует взаимодействие с UI
+ */
+export function renderAll() {
+  withUiBusy(renderAllInternal)();
+}
+
+/**
+ * Выравнивает hover-кнопки по верхнему краю видимой части сообщения
+ *
+ * Для каждого сообщения находит первый видимый блок контента
+ * и позиционирует hover-контролы относительно его верхней границы
+ * Это обеспечивает корректное отображение кнопок для свернутых сообщений
+ */
+export function adjustHoverOffsets() {
+  const messagesContainer = document.querySelector('.messages');
+  if (!messagesContainer) return;
+
+  const msgs = messagesContainer.querySelectorAll('.msg');
+  msgs.forEach(msg => {
+    const bubble = msg.querySelector('.bubble');
+    const controls = bubble?.querySelector('.hover-controls');
+    if (!bubble || !controls) return;
+
+    // ищем первый видимый дочерний блок (кроме самих hover-controls)
+    const children = Array.from(bubble.children).filter(
+      node => !node.classList.contains('hover-controls')
+    );
+
+    let target = null;
+    for (const node of children) {
+      // offsetParent === null у элементов display:none
+      if (node.offsetParent !== null) {
+        target = node;
+        break;
+      }
+    }
+    if (!target) return;
+
+    const offset = target.offsetTop; // относительно bubble (position:relative)
+    controls.style.top = offset + "px";
+  });
+}
+
+/**
+ * Обрабатывает запрос пользователя и генерирует ответ ассистента
+ *
+ * Процесс работы:
+ * 1. Отправляет текст пользователя на REST API для генерации SQL запроса
+ * 2. Получает SQL запрос и параметры, сохраняет тайминги REST запроса
+ * 3. Выполняет SQL запрос через API с токеном авторизации
+ * 4. Анализирует результат и определяет способ отображения:
+ *    - Таблица (если результат - простые объекты, не более MAX_TABLE_COLS колонок)
+ *    - Текстовый список (для всех остальных случаев)
+ * 5. Сохраняет тайминги выполнения SQL запроса
+ * 6. Обновляет сообщения в интерфейсе
+ *
+ * @param {string} userText - Текст вопроса пользователя
+ * @param {Object} assistantMsg - Объект сообщения ассистента для заполнения
+ * @param {Object} userMsg - Объект сообщения пользователя для сохранения таймингов
+ * @param {AbortSignal} signal - Сигнал для отмены операции
+ */
+export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) {
+  try {
+    // --- тайминги REST-запроса к URL_rest (fetchSqlText) ---
+    const restStart = new Date();
+    const t0 = performance.now();
+
+    // сохраняем время начала REST-запроса
+    assistantMsg.restRequestAt = restStart.toISOString();
+    if (userMsg) userMsg.restRequestAt = assistantMsg.restRequestAt;
+
+    const response = await fetchSqlText(userText, { signal });
+
+    const restEnd = new Date();
+    const durationMs = Math.round(performance.now() - t0);
+
+    // сохраняем время окончания и длительность REST для ассистента
+    assistantMsg.restResponseAt = restEnd.toISOString();
+    assistantMsg.restDurationMs = durationMs;
+
+    // для пользователя сохраняем только REST тайминги
+    if (userMsg) {
+      userMsg.restResponseAt = assistantMsg.restResponseAt;
+      userMsg.restDurationMs = durationMs;
+    }
+
+    let sqlText = "";
+    let params = null;
+
+    if (response && typeof response === "object") {
+      sqlText = typeof response.sql === "string" ? response.sql : "";
+      params = response.params ?? null;
+    }
+
+    if (!sqlText) throw new Error("SQL not generated");
+
+    assistantMsg.sql = sqlText;
+    assistantMsg.params = params;
+    renderMessagesInternal();
+
+    const encodedToken = await getEncodedAdminToken({ signal });
+
+    // --- тайминги SQL выполнения (только для ассистента) ---
+    const executeStart = new Date();
+    const executeT0 = performance.now();
+
+    assistantMsg.executeRequestAt = executeStart.toISOString();
+
+    let executeResult;
+    try {
+      executeResult = await executeSqlViaApi(
+        { sqlText, params, token: encodedToken },
+        { signal }
+      );
+
+      const executeEnd = new Date();
+      const executeDurationMs = Math.round(performance.now() - executeT0);
+
+      // сохраняем тайминги SQL выполнения только для ассистента
+      assistantMsg.executeResponseAt = executeEnd.toISOString();
+      assistantMsg.executeDurationMs = executeDurationMs;
+
+    } catch (execErr) {
+      const executeEnd = new Date();
+      const executeDurationMs = Math.round(performance.now() - executeT0);
+
+      assistantMsg.executeResponseAt = executeEnd.toISOString();
+      assistantMsg.executeDurationMs = executeDurationMs;
+      assistantMsg.error = true;
+      assistantMsg.content = "❌ Ошибка выполнения SQL\n\n" + (execErr?.message || String(execErr));
+      renderMessagesInternal();
+      return;
+    }
+
+    setOverlay(false);
+
+    if (isArrayOfObjects(executeResult)) {
+      const rows = executeResult;
+      const columns = getColumnsFromRows(rows);
+
+      const hasComplex = rows.some(r =>
+        r && Object.values(r).some(v =>
+          (
+            Array.isArray(v) &&
+            v.length > 0 &&
+            v.every(o => o && typeof o === "object" && !Array.isArray(o))
+          ) ||
+          (v && typeof v === "object" && !Array.isArray(v))
+        )
+      );
+
+      if (!hasComplex && columns.length > 0 && columns.length <= MAX_TABLE_COLS && rows.length > 1) {
+        assistantMsg.table = { columns, rows };
+        assistantMsg.csv = toCsv(rows, columns);
+        assistantMsg.content = `✅ Result rendered as table (${rows.length} rows, ${columns.length} cols).`;
+        assistantMsg.hasTable = true;
+        renderMessagesInternal();
+        return;
+      }
+    }
+
+    // Во всех остальных случаях показываем как текстовый список
+    const answerText = formatExecuteResult(executeResult);
+    assistantMsg.content = answerText;
+    renderMessagesInternal();
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    assistantMsg.error = true;
+    assistantMsg.content = "❌ Ошибка при подготовке запроса\n\n" + (error?.message || String(error));
+    renderMessagesInternal();
+  }
+}
