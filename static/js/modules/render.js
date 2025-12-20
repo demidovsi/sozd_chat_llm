@@ -452,12 +452,20 @@ function renderMessagesInternal() {
         topControls.appendChild(deleteBtn);
       }
 
+      // Если сообщение свернуто, кнопки всегда видны
+      if (m.role === 'assistant' && m.collapsed) {
+        topControls.style.opacity = '1';
+      }
+
       // Показываем/скрываем кнопки при наведении на сообщение
       bubble.addEventListener('mouseenter', () => {
         topControls.style.opacity = '1';
       });
       bubble.addEventListener('mouseleave', () => {
-        topControls.style.opacity = '0';
+        // Если сообщение свернуто, кнопки остаются видимыми
+        if (!(m.role === 'assistant' && m.collapsed)) {
+          topControls.style.opacity = '0';
+        }
       });
 
       bubble.appendChild(topControls);
@@ -468,6 +476,20 @@ function renderMessagesInternal() {
     collapsibleContent.className = 'collapsible-content';
     if (m.collapsed) {
       collapsibleContent.style.display = 'none';
+    }
+
+    // Placeholder для свернутого сообщения
+    let collapsedPlaceholder = null;
+    if (m.role === 'assistant' && m.collapsed) {
+      collapsedPlaceholder = document.createElement('div');
+      collapsedPlaceholder.className = 'collapsed-placeholder';
+      collapsedPlaceholder.style.cssText = `
+        color: var(--muted-2);
+        font-size: 13px;
+        font-style: italic;
+        padding: 8px 0;
+      `;
+      collapsedPlaceholder.textContent = '[Сообщение свернуто]';
     }
 
     // Текстовое содержимое
@@ -595,6 +617,11 @@ function renderMessagesInternal() {
         const csv = toCsv(rows, columns);
         copyToClipboard(csv);
       };
+    }
+
+    // Добавляем placeholder если сообщение свернуто
+    if (collapsedPlaceholder) {
+      bubble.appendChild(collapsedPlaceholder);
     }
 
     // Добавляем основной контент в bubble
