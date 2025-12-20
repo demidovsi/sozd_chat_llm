@@ -559,8 +559,19 @@
       padding: 8px 10px;
       border-bottom: 1px solid var(--border);
       vertical-align: top;
-      white-space: nowrap;
       text-align: left;
+    }
+
+    /* Ячейки таблицы по умолчанию не переносят текст */
+    .tbl th {
+      white-space: nowrap;
+    }
+
+    /* Ячейки с данными могут переносить длинный контент (например, URL) */
+    .tbl td {
+      max-width: 400px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
 
     .tbl th {
@@ -842,10 +853,11 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Разрешаем перенос для длинных URL */
+  max-width: 100%;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .table-link:hover {
