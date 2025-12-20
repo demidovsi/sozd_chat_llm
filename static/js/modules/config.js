@@ -5,7 +5,7 @@
 export const config = {
   kirill: "wqzDi8OVw43DjcOOwoTCncKZwpM=",
   URL: "https://159.223.0.234:5001/",
-  URL_rest: "http://localhost:5050/"
+  URL_rest: "https://159.223.0.234:5051/"
 };
 
 export const LS_KEY = "chatui_demo_v1";
