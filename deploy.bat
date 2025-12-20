@@ -1,16 +1,20 @@
 @echo off
-REM Скрипт для развертывания sozd-chat-web на Google Cloud Run
+REM Скрипт для развертывания на Google Cloud Run
+REM Использование: deploy.bat [IMAGE_NAME] [REGION] [PORT]
+REM Пример: deploy.bat sozd-chat-web europe-central2 8080
 
 setlocal
 
 set PROJECT_ID=playground-332710
-set IMAGE_NAME=sozd-chat-web
-set REGION=europe-central2
-set PORT=8080
+if "%~1"=="" (set IMAGE_NAME=sozd-chat-web) else (set IMAGE_NAME=%~1)
+if "%~2"=="" (set REGION=europe-central2) else (set REGION=%~2)
+if "%~3"=="" (set PORT=8080) else (set PORT=%~3)
 set IMAGE_TAG=gcr.io/%PROJECT_ID%/%IMAGE_NAME%:latest
 
 echo =========================================
 echo Развертывание %IMAGE_NAME%
+echo Регион: %REGION%
+echo Порт: %PORT%
 echo =========================================
 
 echo.

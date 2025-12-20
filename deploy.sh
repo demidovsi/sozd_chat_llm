@@ -1,18 +1,22 @@
 #!/bin/bash
 
-# Скрипт для развертывания sozd-chat-web на Google Cloud Run
+# Скрипт для развертывания на Google Cloud Run
+# Использование: ./deploy.sh [IMAGE_NAME] [REGION] [PORT]
+# Пример: ./deploy.sh sozd-chat-web europe-central2 8080
 
 set -e  # Остановка при ошибке
 
 PROJECT_ID="playground-332710"
-IMAGE_NAME="sozd-chat-web"
-REGION="europe-central2"
-PORT="8080"
+IMAGE_NAME="${1:-sozd-chat-web}"  # Первый аргумент или значение по умолчанию
+REGION="${2:-europe-central2}"     # Второй аргумент или значение по умолчанию
+PORT="${3:-8080}"                  # Третий аргумент или значение по умолчанию
 
 IMAGE_TAG="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:latest"
 
 echo "========================================="
 echo "Развертывание ${IMAGE_NAME}"
+echo "Регион: ${REGION}"
+echo "Порт: ${PORT}"
 echo "========================================="
 
 echo ""
