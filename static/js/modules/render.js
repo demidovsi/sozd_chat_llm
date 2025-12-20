@@ -36,6 +36,21 @@ export function setElements(elements) {
   chatTitleEl = elements.chatTitleEl;
   searchInputEl = elements.searchInputEl;
   promptInput = elements.promptInput;
+
+  // Добавляем обработчик сохранения позиции скролла
+  if (messagesEl) {
+    messagesEl.addEventListener('scroll', saveScrollPosition);
+  }
+}
+
+/**
+ * Сохраняет текущую позицию скролла для активного чата
+ */
+function saveScrollPosition() {
+  const currentChat = getActiveChat();
+  if (!currentChat || !messagesEl) return;
+
+  currentChat.scrollTop = messagesEl.scrollTop;
 }
 
 // ============================================================================
@@ -74,6 +89,8 @@ function deleteMessage(chatId, messageId) {
 
   saveState();
   renderMessagesInternal();
+  // Обновляем список чатов, чтобы изменился счетчик user-сообщений
+  renderChatList();
 
   requestAnimationFrame(() => {
     if (messagesEl) {
@@ -323,6 +340,9 @@ export function renderChatList() {
       if (chat.id === state.activeChatId) return;
 
       const run = () => {
+        // Сохраняем позицию скролла текущего чата перед переключением
+        saveScrollPosition();
+
         state.activeChatId = chat.id;
         saveState();
         renderAll();
@@ -639,8 +659,15 @@ function renderMessagesInternal() {
     messagesContainer.appendChild(msg);
   }
   updateChatTitleWithStats(chatTitleEl);
-  // по умолчанию — скроллим в конец (для новых сообщений)
-  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  // Восстанавливаем позицию скролла для текущего чата
+  const savedScrollTop = currentChat.scrollTop;
+  if (savedScrollTop !== undefined && savedScrollTop !== null) {
+    messagesContainer.scrollTop = savedScrollTop;
+  } else {
+    // По умолчанию — скроллим в конец (для новых сообщений)
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
 
   // ⭐ после рендера — выравниваем кнопки по верхней видимой строке
   requestAnimationFrame(() => adjustHoverOffsets());
@@ -791,6 +818,9 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
 
     assistantMsg.sql = sqlText;
     assistantMsg.params = params;
+    // Сбрасываем scrollTop для автоматического скролла в конец при новом сообщении
+    const currentChat = getActiveChat();
+    if (currentChat) currentChat.scrollTop = undefined;
     renderMessagesInternal();
 
     const encodedToken = await getEncodedAdminToken({ signal });
@@ -823,6 +853,7 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
       assistantMsg.executeDurationMs = executeDurationMs;
       assistantMsg.error = true;
       assistantMsg.content = "❌ Ошибка выполнения SQL\n\n" + (execErr?.message || String(execErr));
+      if (currentChat) currentChat.scrollTop = undefined;
       renderMessagesInternal();
       return;
     }
@@ -849,6 +880,7 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
         assistantMsg.csv = toCsv(rows, columns);
         assistantMsg.content = `✅ Result rendered as table (${rows.length} rows, ${columns.length} cols).`;
         assistantMsg.hasTable = true;
+        if (currentChat) currentChat.scrollTop = undefined;
         renderMessagesInternal();
         return;
       }
@@ -857,11 +889,13 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
     // Во всех остальных случаях показываем как текстовый список
     const answerText = formatExecuteResult(executeResult);
     assistantMsg.content = answerText;
+    if (currentChat) currentChat.scrollTop = undefined;
     renderMessagesInternal();
   } catch (error) {
     if (error?.name === "AbortError") return;
     assistantMsg.error = true;
     assistantMsg.content = "❌ Ошибка при подготовке запроса\n\n" + (error?.message || String(error));
+    if (currentChat) currentChat.scrollTop = undefined;
     renderMessagesInternal();
   }
 }
