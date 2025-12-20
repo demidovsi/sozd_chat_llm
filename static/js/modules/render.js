@@ -548,7 +548,9 @@ function renderMessagesInternal() {
         const tr = document.createElement('tr');
         for (const col of columns) {
           const td = document.createElement('td');
-          td.innerHTML = escapeCell(row?.[col], col, row);
+          // Передаем undefined как первый параметр, чтобы escapeCell сама получила значение по пути
+          // Это нужно для поддержки путей с точкой (например, "metadata.id")
+          td.innerHTML = escapeCell(undefined, col, row);
           tr.appendChild(td);
         }
         tbody.appendChild(tr);

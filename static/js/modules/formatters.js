@@ -4,7 +4,45 @@
 
 import { escapeHtml, isUrl } from './utils.js';
 
+/**
+ * Получает значение из объекта по пути с точкой
+ * Например: getValueByPath(row, "metadata.id") вернет row.metadata.id
+ * @param {Object} obj - Объект для получения значения
+ * @param {string} path - Путь к значению (может содержать точки)
+ * @returns {*} Значение по указанному пути или undefined
+ */
+function getValueByPath(obj, path) {
+  if (!path || !obj) return undefined;
+
+  // Если путь содержит точку, разбираем его
+  if (path.includes('.')) {
+    const parts = path.split('.');
+    let value = obj;
+    for (const part of parts) {
+      if (value == null) return undefined;
+      value = value[part];
+    }
+    return value;
+  }
+
+  // Иначе просто возвращаем значение по ключу
+  return obj[path];
+}
+
+/**
+ * Экранирует значение ячейки для отображения в таблице
+ * Поддерживает получение значений по пути с точкой (например, "metadata.id")
+ * @param {*} v - Значение ячейки
+ * @param {string} column - Название колонки (может быть путем с точкой)
+ * @param {Object} row - Объект строки (для получения значения по пути)
+ * @returns {string} HTML-строка для отображения
+ */
 export function escapeCell(v, column, row) {
+  // Если v не передано, но есть column и row, пытаемся получить значение по пути
+  if (v === undefined && column && row) {
+    v = getValueByPath(row, column);
+  }
+
   if (v == null) return "<em>null</em>";
   if (v === "") return "<em>empty</em>";
 
@@ -18,6 +56,13 @@ export function escapeCell(v, column, row) {
   return escapeHtml(str);
 }
 
+/**
+ * Преобразует массив объектов в CSV формат
+ * Поддерживает колонки с путями (например, "metadata.id")
+ * @param {Array} rows - Массив объектов-строк
+ * @param {Array<string>} columns - Массив названий колонок
+ * @returns {string} CSV-строка
+ */
 export function toCsv(rows, columns) {
   const esc = (s) => {
     const div = document.createElement('div');
@@ -29,7 +74,13 @@ export function toCsv(rows, columns) {
   };
 
   const header = columns.map(esc).join(";");
-  const lines = rows.map(r => columns.map(c => esc(r?.[c])).join(";"));
+  const lines = rows.map(r =>
+    columns.map(c => {
+      // Получаем значение по пути (с поддержкой точки)
+      const value = getValueByPath(r, c);
+      return esc(value);
+    }).join(";")
+  );
   return [header, ...lines].join("\n");
 }
 
