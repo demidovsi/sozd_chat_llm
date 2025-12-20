@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const scrollToEndBtn = el("scrollToEndBtn");
   const scrollToTopBtn = el("scrollToTopBtn");
+  const versionInfoEl = el("versionInfo");
 
   // Проверка элементов
   if (!chatListEl || !messagesEl || !chatTitleEl) {
@@ -204,6 +205,22 @@ document.addEventListener("DOMContentLoaded", () => {
   // Первый рендер
   renderAll();
   promptInput.focus();
+
+  // Загрузка и отображение версии
+  async function loadVersion() {
+    try {
+      const response = await fetch('/api/version');
+      if (response.ok) {
+        const data = await response.json();
+        if (versionInfoEl && data.version && data.date) {
+          versionInfoEl.textContent = `v${data.version} (${data.date})`;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load version:', err);
+    }
+  }
+  loadVersion();
 
   // Статистика производительности
   const endTime = performance.now();

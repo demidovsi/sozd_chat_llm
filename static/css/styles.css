@@ -83,7 +83,16 @@
 
     .sidebar-top {
       display: flex;
+      flex-direction: column;
       gap: 10px;
+    }
+
+    .version-info {
+      font-size: 11px;
+      color: var(--muted-2);
+      text-align: right;
+      margin-top: -4px;
+      user-select: none;
     }
 
     .sidebar-search {
