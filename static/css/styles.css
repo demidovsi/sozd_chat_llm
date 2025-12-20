@@ -136,9 +136,16 @@
     .chat-item .name {
       font-weight: 600;
       font-size: 14px;
-      white-space: nowrap;
+      /* Разрешаем перенос текста для длинных названий */
+      white-space: normal;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      /* Ограничиваем максимальное количество строк */
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.3;
     }
 
     .chat-item .preview {

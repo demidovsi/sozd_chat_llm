@@ -225,7 +225,13 @@ export function renderChatList() {
 
     const name = document.createElement("div");
     name.className = "name";
-    name.textContent = chat.title || "Untitled";
+
+    // Подсчитываем количество user-сообщений (исключая первое приветственное)
+    const userMsgCount = chat.messages.filter((m, idx) => idx > 0 && m.role === "user").length;
+    const chatTitle = chat.title || "Untitled";
+
+    // Добавляем количество сообщений к названию чата
+    name.textContent = userMsgCount > 0 ? `${chatTitle} (${userMsgCount})` : chatTitle;
 
     // Добавляем обработчик двойного клика для редактирования прямо в списке
     name.addEventListener("dblclick", (e) => {
@@ -266,7 +272,9 @@ export function renderChatList() {
           }
         }
 
-        name.textContent = chat.title || "Untitled";
+        // Восстанавливаем название с количеством сообщений
+        const finalTitle = chat.title || "Untitled";
+        name.textContent = userMsgCount > 0 ? `${finalTitle} (${userMsgCount})` : finalTitle;
         name.removeChild(input);
       };
 
