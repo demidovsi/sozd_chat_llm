@@ -108,22 +108,39 @@ export function makeLinksOpenInNewTab(root) {
  * @param {string} bucketName - Имя bucket (не используется, т.к. bucket указан на бэкенде)
  * @param {string} filename - Имя файла (уже содержит префикс с номером закона)
  */
-export function downloadFromGCS(bucketName, filename) {
+export async function downloadFromGCS(bucketName, filename) {
   try {
     // Используем API endpoint для безопасного скачивания
     const apiUrl = `/api/download?filename=${encodeURIComponent(filename)}`;
 
     console.log(`Downloading file via API: ${apiUrl}`);
 
-    // Открываем файл в новой вкладке для скачивания
+    // Используем fetch для получения файла
+    const response = await fetch(apiUrl);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    // Получаем blob из ответа
+    const blob = await response.blob();
+
+    // Создаем URL для blob
+    const blobUrl = URL.createObjectURL(blob);
+
+    // Создаем ссылку и кликаем для скачивания
     const link = document.createElement('a');
-    link.href = apiUrl;
+    link.href = blobUrl;
     link.download = filename.split('/').pop(); // Используем только имя файла без пути
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    console.log(`File download initiated: ${filename}`);
+    // Освобождаем память
+    URL.revokeObjectURL(blobUrl);
+
+    console.log(`File download completed: ${filename}`);
   } catch (error) {
     console.error('Error downloading file from GCS:', error);
     alert(`Ошибка при скачивании файла: ${error.message}`);
