@@ -20,6 +20,17 @@ echo "Порт: ${PORT}"
 echo "========================================="
 
 echo ""
+echo "⚠️  НАПОМИНАНИЕ: Не забудьте обновить CHANGELOG.md перед деплоем!"
+echo "   Добавьте запись о новых изменениях в файл CHANGELOG.md"
+echo ""
+read -p "CHANGELOG.md обновлен? (y/n) " -n 1 -r
+echo ""
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+  echo "Развертывание отменено. Обновите CHANGELOG.md и повторите попытку."
+  exit 1
+fi
+
+echo ""
 echo "1. Сборка Docker образа..."
 docker build -t ${IMAGE_TAG} .
 

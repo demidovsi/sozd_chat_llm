@@ -18,6 +18,16 @@ echo Порт: %PORT%
 echo =========================================
 
 echo.
+echo WARNING: Не забудьте обновить CHANGELOG.md перед деплоем!
+echo          Добавьте запись о новых изменениях в файл CHANGELOG.md
+echo.
+set /p CHANGELOG_UPDATED="CHANGELOG.md обновлен? (y/n): "
+if /i not "%CHANGELOG_UPDATED%"=="y" (
+    echo Развертывание отменено. Обновите CHANGELOG.md и повторите попытку.
+    exit /b 1
+)
+
+echo.
 echo 1. Сборка Docker образа...
 docker build -t %IMAGE_TAG% .
 if errorlevel 1 goto error
