@@ -40,7 +40,8 @@ if errorlevel 1 goto error
 echo.
 echo 3. Загрузка GCS credentials...
 if exist gcs_credentials.json (
-    set /p GCS_CREDS=<gcs_credentials.json
+    REM Используем PowerShell для чтения всего файла и удаления переводов строк
+    for /f "delims=" %%i in ('powershell -Command "Get-Content gcs_credentials.json -Raw | ForEach-Object {$_ -replace '`n', '' -replace '`r', ''}"') do set GCS_CREDS=%%i
     echo GCS credentials loaded from file
 ) else (
     echo WARNING: gcs_credentials.json not found, service may not work!
