@@ -6,16 +6,19 @@
 
 ## [Unreleased]
 
-## [2024-12-21 v4] - Критическое исправление GCS credentials (обновлено)
+## [2024-12-21 v4] - Критическое исправление GCS credentials через base64
 
 ### Исправлено
-- **КРИТИЧЕСКОЕ: Исправлено чтение GCS credentials в deploy.bat**
-  - Первая попытка: команда `set /p` читала только первую строку
-  - Вторая попытка: `for /f` loop ломал многострочный JSON
-  - **РЕШЕНИЕ:** PowerShell теперь вызывает gcloud напрямую с корректным JSON
-  - Убран проблемный batch for loop
-  - Исправлены ошибки: "Expecting property name..." и "Expecting value: line 1 column 1"
-  - Теперь полный валидный JSON надежно передается в Cloud Run
+- **КРИТИЧЕСКОЕ: Исправлена передача GCS credentials через base64 кодирование**
+  - Попытка 1: `set /p` читал только первую строку JSON
+  - Попытка 2: `for /f` loop ломал многострочный JSON
+  - Попытка 3: PowerShell вызов gcloud - ошибка парсинга спецсимволов
+  - **РЕШЕНИЕ**: Base64 кодирование в deploy скриптах, декодирование в Python
+  - Переменная окружения: `GCS_CREDENTIALS_B64`
+  - Новая функция `get_gcs_credentials_json()` с поддержкой base64
+  - Обратная совместимость с `GCS_CREDENTIALS` и файлом
+  - Обновлены `deploy.bat` и `deploy.sh`
+  - Решены все ошибки: "Expecting property name...", "Expecting value...", "Bad syntax for dict arg"
 
 ## [2024-12-21 v3] - Исправление загрузки файлов через fetch
 
