@@ -41,6 +41,9 @@ echo.
 echo 3. Загрузка GCS credentials...
 if exist gcs_credentials.json (
     echo GCS credentials file found
+    REM Кодируем JSON в base64 чтобы избежать проблем с спецсимволами
+    for /f "delims=" %%i in ('powershell -Command "[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Content gcs_credentials.json -Raw)))"') do set GCS_CREDS_B64=%%i
+    echo GCS credentials encoded to base64
 ) else (
     echo WARNING: gcs_credentials.json not found, service may not work!
     goto error
@@ -48,8 +51,7 @@ if exist gcs_credentials.json (
 
 echo.
 echo 4. Развертывание на Cloud Run...
-REM Используем PowerShell для чтения файла и вызова gcloud с правильно экранированным JSON
-powershell -Command "$creds = (Get-Content gcs_credentials.json -Raw).Replace(\"`r\", '').Replace(\"`n\", ''); gcloud run deploy %IMAGE_NAME% --image %IMAGE_TAG% --platform managed --region %REGION% --allow-unauthenticated --port %PORT% --set-env-vars=\"GCS_CREDENTIALS=$creds\""
+gcloud run deploy %IMAGE_NAME% --image %IMAGE_TAG% --platform managed --region %REGION% --allow-unauthenticated --port %PORT% --set-env-vars="GCS_CREDENTIALS_B64=%GCS_CREDS_B64%"
 if errorlevel 1 goto error
 
 echo.

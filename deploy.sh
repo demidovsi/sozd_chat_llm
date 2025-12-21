@@ -39,12 +39,13 @@ echo "2. Отправка образа в GCR..."
 docker push ${IMAGE_TAG}
 
 echo ""
-echo "3. Передача GCS credentials как переменная окружения..."
+echo "3. Кодирование GCS credentials в base64..."
 if [ -f "gcs_credentials.json" ]; then
-  GCS_CREDS=$(cat gcs_credentials.json | tr -d '\n')
-  echo "GCS credentials loaded from file"
+  GCS_CREDS_B64=$(base64 -w 0 < gcs_credentials.json)
+  echo "GCS credentials encoded to base64"
 else
   echo "WARNING: gcs_credentials.json not found, service may not work!"
+  exit 1
 fi
 
 echo ""
@@ -55,7 +56,7 @@ gcloud run deploy ${IMAGE_NAME} \
   --region ${REGION} \
   --allow-unauthenticated \
   --port ${PORT} \
-  --set-env-vars="GCS_CREDENTIALS=${GCS_CREDS}"
+  --set-env-vars="GCS_CREDENTIALS_B64=${GCS_CREDS_B64}"
 
 echo ""
 echo "========================================="
