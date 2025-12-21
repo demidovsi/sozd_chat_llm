@@ -5,7 +5,8 @@
 export const config = {
   kirill: "wqzDi8OVw43DjcOOwoTCncKZwpM=",
   URL: "https://159.223.0.234:5001/",
-  URL_rest: "https://159.223.0.234:5051/"
+  URL_rest: "https://159.223.0.234:5051/",
+  GCS_BUCKET: "sozd-laws-file" // Имя корневого bucket в Google Cloud Storage
 };
 
 export const LS_KEY = "chatui_demo_v1";

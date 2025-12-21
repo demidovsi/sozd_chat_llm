@@ -3,13 +3,13 @@
  */
 
 import { state, saveState, getActiveChat } from './state.js';
-import { copyToClipboard, makeLinksOpenInNewTab, isArrayOfObjects, getColumnsFromRows } from './utils.js';
+import { copyToClipboard, makeLinksOpenInNewTab, isArrayOfObjects, getColumnsFromRows, downloadFromGCS } from './utils.js';
 import { escapeCell, toCsv, formatTimeForMeta, formatDurationMs, formatExecuteResult } from './formatters.js';
 import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy } from './ui.js';
 import { updateChatTitleWithStats } from './actions.js';
 import { fetchSqlText, executeSqlViaApi } from './api.js';
 import { getEncodedAdminToken } from './crypto.js';
-import { MAX_TABLE_COLS } from './config.js';
+import { MAX_TABLE_COLS, config } from './config.js';
 
 // ============================================================================
 // Глобальные элементы DOM (устанавливаются через setElements)
@@ -498,6 +498,18 @@ function renderMessagesInternal() {
       content.className = 'content';
       content.innerHTML = renderMarkdownSafe(m.content);
       makeLinksOpenInNewTab(content);
+
+      // Добавляем обработчики для кнопок скачивания файлов из GCS в текстовом содержимом
+      const downloadBtns = content.querySelectorAll('.download-btn');
+      downloadBtns.forEach(btn => {
+        btn.onclick = () => {
+          const filename = btn.getAttribute('data-filename');
+          if (filename) {
+            downloadFromGCS(config.GCS_BUCKET, filename);
+          }
+        };
+      });
+
       collapsibleContent.appendChild(content);
     }
 
@@ -617,6 +629,18 @@ function renderMessagesInternal() {
         const csv = toCsv(rows, columns);
         copyToClipboard(csv);
       };
+
+      // Обработчик для кнопок скачивания файлов из GCS
+      const downloadBtns = tblWrap.querySelectorAll('.download-btn');
+      downloadBtns.forEach(btn => {
+        btn.onclick = () => {
+          const filename = btn.getAttribute('data-filename');
+          if (filename) {
+            // Filename уже содержит префикс с номером закона
+            downloadFromGCS(config.GCS_BUCKET, filename);
+          }
+        };
+      });
     }
 
     // Добавляем placeholder если сообщение свернуто

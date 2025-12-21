@@ -28,13 +28,23 @@ echo "2. Отправка образа в GCR..."
 docker push ${IMAGE_TAG}
 
 echo ""
-echo "3. Развертывание на Cloud Run..."
+echo "3. Передача GCS credentials как переменная окружения..."
+if [ -f "gcs_credentials.json" ]; then
+  GCS_CREDS=$(cat gcs_credentials.json | tr -d '\n')
+  echo "GCS credentials loaded from file"
+else
+  echo "WARNING: gcs_credentials.json not found, service may not work!"
+fi
+
+echo ""
+echo "4. Развертывание на Cloud Run..."
 gcloud run deploy ${IMAGE_NAME} \
   --image ${IMAGE_TAG} \
   --platform managed \
   --region ${REGION} \
   --allow-unauthenticated \
-  --port ${PORT}
+  --port ${PORT} \
+  --set-env-vars="GCS_CREDENTIALS=${GCS_CREDS}"
 
 echo ""
 echo "========================================="

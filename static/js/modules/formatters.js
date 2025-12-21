@@ -48,6 +48,14 @@ export function escapeCell(v, column, row) {
 
   const str = String(v);
 
+  // Специальная обработка для filename_bucket - создаем кнопку скачивания
+  // Проверка нечувствительна к регистру (filename_bucket или FILENAME_BUCKET)
+  // Filename уже содержит префикс с номером закона
+  if (column && column.toLowerCase() === 'filename_bucket' && str && str !== 'null' && str !== 'empty') {
+    const escapedFilename = escapeHtml(str);
+    return `<button class="download-btn" data-filename="${escapedFilename}" title="Скачать файл из GCS">📥 ${escapedFilename}</button>`;
+  }
+
   if (isUrl(str)) {
     const escapedUrl = escapeHtml(str);
     return `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer" class="table-link" title="Открыть в новом окне">${escapedUrl}</a>`;
@@ -121,9 +129,17 @@ export function formatExecuteResult(result) {
           value.forEach((obj, subIdx) => {
             lines.push(`    ${subIdx + 1})`);
             for (const [subKey, subValue] of Object.entries(obj)) {
-              lines.push(
-                `      **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
-              );
+              // Проверка на filename_bucket в вложенном объекте
+              if (subKey.toLowerCase() === 'filename_bucket' && subValue && subValue !== 'null') {
+                const escapedFilename = escapeHtml(String(subValue));
+                lines.push(
+                  `      **${subKey}**: <button class="download-btn" data-filename="${escapedFilename}" title="Скачать файл из GCS">📥 ${escapedFilename}</button>`
+                );
+              } else {
+                lines.push(
+                  `      **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
+                );
+              }
             }
             lines.push("");
           });
@@ -131,15 +147,31 @@ export function formatExecuteResult(result) {
         else if (value && typeof value === "object" && !Array.isArray(value)) {
           lines.push(`  **${key}**:`);
           for (const [subKey, subValue] of Object.entries(value)) {
-            lines.push(
-              `    **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
-            );
+            // Проверка на filename_bucket в вложенном объекте
+            if (subKey.toLowerCase() === 'filename_bucket' && subValue && subValue !== 'null') {
+              const escapedFilename = escapeHtml(String(subValue));
+              lines.push(
+                `    **${subKey}**: <button class="download-btn" data-filename="${escapedFilename}" title="Скачать файл из GCS">📥 ${escapedFilename}</button>`
+              );
+            } else {
+              lines.push(
+                `    **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
+              );
+            }
           }
         }
         else {
-          lines.push(
-            `  **${key}**: ${value === null ? "null" : String(value)}`
-          );
+          // Проверка на filename_bucket на верхнем уровне
+          if (key.toLowerCase() === 'filename_bucket' && value && value !== 'null') {
+            const escapedFilename = escapeHtml(String(value));
+            lines.push(
+              `  **${key}**: <button class="download-btn" data-filename="${escapedFilename}" title="Скачать файл из GCS">📥 ${escapedFilename}</button>`
+            );
+          } else {
+            lines.push(
+              `  **${key}**: ${value === null ? "null" : String(value)}`
+            );
+          }
         }
       }
 

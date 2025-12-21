@@ -28,8 +28,17 @@ docker push %IMAGE_TAG%
 if errorlevel 1 goto error
 
 echo.
-echo 3. Развертывание на Cloud Run...
-gcloud run deploy %IMAGE_NAME% --image %IMAGE_TAG% --platform managed --region %REGION% --allow-unauthenticated --port %PORT%
+echo 3. Загрузка GCS credentials...
+if exist gcs_credentials.json (
+    set /p GCS_CREDS=<gcs_credentials.json
+    echo GCS credentials loaded from file
+) else (
+    echo WARNING: gcs_credentials.json not found, service may not work!
+)
+
+echo.
+echo 4. Развертывание на Cloud Run...
+gcloud run deploy %IMAGE_NAME% --image %IMAGE_TAG% --platform managed --region %REGION% --allow-unauthenticated --port %PORT% --set-env-vars="GCS_CREDENTIALS=%GCS_CREDS%"
 if errorlevel 1 goto error
 
 echo.

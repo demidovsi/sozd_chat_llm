@@ -60,6 +60,7 @@ deploy.bat IMAGE_NAME [REGION] [PORT]
 - Google Cloud SDK (gcloud) установлен и настроен
 - Проект GCP: `playground-332710`
 - Dockerfile в текущей директории
+- **GCS Credentials**: файл `gcs_credentials.json` в корне проекта (см. SECURITY.md)
 
 ## Регионы
 

@@ -102,3 +102,30 @@ export function makeLinksOpenInNewTab(root) {
     }
   });
 }
+
+/**
+ * Скачивает файл из Google Cloud Storage через API endpoint
+ * @param {string} bucketName - Имя bucket (не используется, т.к. bucket указан на бэкенде)
+ * @param {string} filename - Имя файла (уже содержит префикс с номером закона)
+ */
+export function downloadFromGCS(bucketName, filename) {
+  try {
+    // Используем API endpoint для безопасного скачивания
+    const apiUrl = `/api/download?filename=${encodeURIComponent(filename)}`;
+
+    console.log(`Downloading file via API: ${apiUrl}`);
+
+    // Открываем файл в новой вкладке для скачивания
+    const link = document.createElement('a');
+    link.href = apiUrl;
+    link.download = filename.split('/').pop(); // Используем только имя файла без пути
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    console.log(`File download initiated: ${filename}`);
+  } catch (error) {
+    console.error('Error downloading file from GCS:', error);
+    alert(`Ошибка при скачивании файла: ${error.message}`);
+  }
+}
