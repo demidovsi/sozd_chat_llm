@@ -40,16 +40,16 @@ if errorlevel 1 goto error
 echo.
 echo 3. Загрузка GCS credentials...
 if exist gcs_credentials.json (
-    REM Используем PowerShell для чтения всего файла и удаления переводов строк
-    for /f "delims=" %%i in ('powershell -Command "Get-Content gcs_credentials.json -Raw | ForEach-Object {$_ -replace '`n', '' -replace '`r', ''}"') do set GCS_CREDS=%%i
-    echo GCS credentials loaded from file
+    echo GCS credentials file found
 ) else (
     echo WARNING: gcs_credentials.json not found, service may not work!
+    goto error
 )
 
 echo.
 echo 4. Развертывание на Cloud Run...
-gcloud run deploy %IMAGE_NAME% --image %IMAGE_TAG% --platform managed --region %REGION% --allow-unauthenticated --port %PORT% --set-env-vars="GCS_CREDENTIALS=%GCS_CREDS%"
+REM Используем PowerShell для чтения файла и вызова gcloud с правильно экранированным JSON
+powershell -Command "$creds = (Get-Content gcs_credentials.json -Raw).Replace(\"`r\", '').Replace(\"`n\", ''); gcloud run deploy %IMAGE_NAME% --image %IMAGE_TAG% --platform managed --region %REGION% --allow-unauthenticated --port %PORT% --set-env-vars=\"GCS_CREDENTIALS=$creds\""
 if errorlevel 1 goto error
 
 echo.
