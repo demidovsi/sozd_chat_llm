@@ -746,6 +746,56 @@
       background: rgba(239, 68, 68, 0.25);
     }
 
+    /* Voice input button */
+    .btn-voice {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.3);
+      color: var(--blue);
+      min-width: 48px;
+      padding: 8px 12px;
+    }
+
+    .btn-voice:hover:not(:disabled) {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgba(59, 130, 246, 0.4);
+    }
+
+    .btn-voice.recording {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: var(--danger);
+      animation: pulse-voice 1.5s ease-in-out infinite;
+    }
+
+    .btn-voice.recording .voice-icon::before {
+      content: '🔴 ';
+    }
+
+    .btn-voice.processing {
+      background: rgba(234, 179, 8, 0.15);
+      border-color: rgba(234, 179, 8, 0.35);
+      color: #eab308;
+    }
+
+    .btn-voice.processing .voice-icon::before {
+      content: '⏳ ';
+    }
+
+    .btn-voice.error {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: var(--danger);
+    }
+
+    @keyframes pulse-voice {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+      }
+    }
+
     .icon-btn {
       border: 0;
       background: transparent;

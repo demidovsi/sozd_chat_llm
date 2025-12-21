@@ -8,6 +8,7 @@ import { initTheme } from './modules/theme.js';
 import { renderAll, renderChatList, renderMessages, fakeStreamAnswer, setElements } from './modules/render.js';
 import { newChat, clearMessages, exportJSON, toggleAllMessages, updateToggleAllButton, getLastUserMessage } from './modules/actions.js';
 import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy } from './modules/ui.js';
+import { VoiceInput } from './modules/voice.js';
 
 // Инициализация при загрузке DOM
 document.addEventListener("DOMContentLoaded", () => {
@@ -27,6 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const composerForm = el("composerForm");
   const promptInput = el("promptInput");
   const sendBtn = el("sendBtn");
+  const voiceBtn = el("voiceBtn");
 
   const themeSelect = el("themeSelect");
   const themeToggleBtn = el("themeToggle");
@@ -55,6 +57,64 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Инициализация темы
   initTheme(themeSelect, themeToggleBtn);
+
+  /** ---------- Voice Input ---------- **/
+  let voiceInput = null;
+  if (VoiceInput.isSupported()) {
+    voiceInput = new VoiceInput();
+
+    // Callback для распознанного текста
+    voiceInput.onTranscript = (transcript, isFinal) => {
+      if (isFinal) {
+        // Вставляем текст в текущую позицию курсора
+        const currentValue = promptInput.value;
+        const cursorPos = promptInput.selectionStart || currentValue.length;
+        const newValue = currentValue.slice(0, cursorPos) + transcript + ' ' + currentValue.slice(cursorPos);
+        promptInput.value = newValue;
+
+        // Устанавливаем курсор после вставленного текста
+        const newCursorPos = cursorPos + transcript.length + 1;
+        promptInput.selectionStart = promptInput.selectionEnd = newCursorPos;
+
+        // Автоматически расширяем textarea
+        autoGrow(promptInput);
+        promptInput.focus();
+      }
+    };
+
+    // Callback для изменения состояния
+    voiceInput.onStateChange = (state, error) => {
+      voiceBtn.classList.remove('recording', 'processing', 'error');
+
+      switch (state) {
+        case 'recording':
+          voiceBtn.classList.add('recording');
+          voiceBtn.title = 'Остановить запись';
+          break;
+        case 'processing':
+          voiceBtn.classList.add('processing');
+          voiceBtn.title = 'Обработка...';
+          break;
+        case 'error':
+          voiceBtn.classList.add('error');
+          voiceBtn.title = `Ошибка: ${error}`;
+          // Сбросить состояние ошибки через 3 секунды
+          setTimeout(() => {
+            voiceBtn.classList.remove('error');
+            voiceBtn.title = 'Голосовой ввод';
+          }, 3000);
+          break;
+        default: // 'idle'
+          voiceBtn.title = 'Голосовой ввод';
+      }
+    };
+
+    // Установить язык по умолчанию (автоопределение)
+    voiceInput.setLanguage('auto');
+  } else {
+    // Скрываем кнопку, если браузер не поддерживает Web Speech API
+    if (voiceBtn) voiceBtn.style.display = 'none';
+  }
 
   /** ---------- Scroll controls ---------- **/
   function scrollToBottom() {
@@ -89,6 +149,13 @@ document.addEventListener("DOMContentLoaded", () => {
       composerForm.requestSubmit();
     } else {
       composerForm.dispatchEvent(new Event("submit", { cancelable: true }));
+    }
+  });
+
+  voiceBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (voiceInput) {
+      voiceInput.toggle();
     }
   });
 
@@ -183,6 +250,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setGenerating(sendBtn, true);
     setIsGenerating(true);
     setOverlay(genOverlay, true);
+    if (voiceBtn) voiceBtn.disabled = true;
 
     try {
       await fakeStreamAnswer(text, assistantMsg, userMsg, abortController.signal);
@@ -197,6 +265,7 @@ document.addEventListener("DOMContentLoaded", () => {
       setIsGenerating(false);
       setOverlay(genOverlay, false);
       setCurrentAbortController(null);
+      if (voiceBtn) voiceBtn.disabled = false;
       saveState();
       renderMessages();
     }
@@ -232,6 +301,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Количество чатов и сообщений
   console.log(`Chats: ${state.chats.length}, Messages: ${state.chats.reduce((sum, c) => sum + c.messages.length, 0)}`);
+
+  // Cleanup при выгрузке страницы
+  window.addEventListener('beforeunload', () => {
+    if (voiceInput) {
+      voiceInput.destroy();
+    }
+  });
 
   console.log('Initialization complete');
 });
