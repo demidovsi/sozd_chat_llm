@@ -16,9 +16,6 @@ export async function fetchSqlText(userText, { signal } = {}) {
   }
 
   const requestUrl = new URL(url);
-  if (restSessionId) {
-    requestUrl.searchParams.set('session_id', restSessionId);
-  }
 
   const requestBody = {
     user_conditions: userText,
@@ -27,6 +24,11 @@ export async function fetchSqlText(userText, { signal } = {}) {
     default_row_from: 0,
     default_order: "law_reg_date desc"
   };
+
+  // Добавляем session_id в тело запроса, если он есть
+  if (restSessionId) {
+    requestBody.session_id = restSessionId;
+  }
 
   try {
     const res = await fetch(requestUrl.toString(), {
@@ -45,9 +47,14 @@ export async function fetchSqlText(userText, { signal } = {}) {
 
     const json = await res.json();
 
+    // Логирование полного ответа для отладки
+    console.log('Full response from sql/text:', json);
+
     if (json && typeof json === "object" && json.session_id) {
       setRestSessionId(json.session_id);
       console.log(`Session ID updated: ${json.session_id}`);
+    } else {
+      console.warn('No session_id in response or response is not an object');
     }
 
     return json;

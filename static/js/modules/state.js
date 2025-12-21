@@ -28,9 +28,21 @@ export function setLastUserMessageCache(value) {
 
 export function setRestSessionId(value) {
   restSessionId = value;
+  // Сохраняем session_id в localStorage
+  if (value) {
+    localStorage.setItem('restSessionId', value);
+    console.log(`Session ID saved to localStorage: ${value}`);
+  }
 }
 
 export function loadState() {
+  // Загружаем session_id из localStorage
+  const savedSessionId = localStorage.getItem('restSessionId');
+  if (savedSessionId) {
+    restSessionId = savedSessionId;
+    console.log(`Session ID loaded from localStorage: ${savedSessionId}`);
+  }
+
   const raw = localStorage.getItem(LS_KEY);
   if (raw) {
     try { return JSON.parse(raw); } catch {}
