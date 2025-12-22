@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    // Установить язык по умолчанию (автоопределение)
+    // Установить язык по умолчанию (умное автоопределение)
     voiceInput.setLanguage('auto');
   } else {
     // Скрываем кнопку, если браузер не поддерживает Web Speech API

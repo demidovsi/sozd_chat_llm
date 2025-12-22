@@ -106,10 +106,12 @@ export class VoiceInput {
     this.language = lang;
     if (this.recognition) {
       if (lang === 'auto') {
-        // Использовать язык браузера или русский по умолчанию
+        // Умное определение: приоритет русскому, но поддержка других языков
         const browserLang = navigator.language || navigator.userLanguage || 'ru-RU';
-        this.recognition.lang = browserLang;
-        console.log(`Язык распознавания (авто): ${browserLang}`);
+        // Если язык браузера русский - используем ru-RU, иначе - язык браузера
+        const detectedLang = browserLang.toLowerCase().startsWith('ru') ? 'ru-RU' : browserLang;
+        this.recognition.lang = detectedLang;
+        console.log(`Язык распознавания (авто): ${detectedLang} (браузер: ${browserLang})`);
       } else {
         this.recognition.lang = lang;
         console.log(`Язык распознавания: ${lang}`);
