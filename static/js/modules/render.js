@@ -815,6 +815,32 @@ export function adjustHoverOffsets() {
 }
 
 /**
+ * Скроллит к началу сообщения ассистента
+ *
+ * @param {string} messageId - ID сообщения для скроллинга
+ */
+function scrollToAssistantMessage(messageId) {
+  const currentChat = getActiveChat();
+  if (!currentChat) return;
+
+  // Используем requestAnimationFrame чтобы дождаться рендера
+  requestAnimationFrame(() => {
+    const messagesContainer = document.querySelector('.messages');
+    if (!messagesContainer) return;
+
+    const messageEl = messagesContainer.querySelector(`[data-id="${messageId}"]`);
+    if (!messageEl) return;
+
+    // Скроллим к началу сообщения ассистента
+    const offsetTop = messageEl.offsetTop;
+    messagesContainer.scrollTop = offsetTop;
+
+    // Сохраняем позицию скролла для текущего чата
+    currentChat.scrollTop = offsetTop;
+  });
+}
+
+/**
  * Обрабатывает запрос пользователя и генерирует ответ ассистента
  *
  * Процесс работы:
@@ -857,6 +883,20 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
       userMsg.restDurationMs = durationMs;
     }
 
+    console.log('Response from URL_rest:', response);
+
+    // Проверяем наличие запроса на уточнение в ответе от URL_rest
+    if (response && typeof response.error === 'string' && response.error.trim().length > 0) {
+      console.log('Clarification request detected:', response.error);
+      // Это запрос на уточнение (код 200), а не ошибка
+      assistantMsg.error = true;
+      assistantMsg.collapsed = false;
+      assistantMsg.content = "❓ " + response.error;
+      scrollToAssistantMessage(assistantMsg.id);
+      renderMessagesInternal();
+      return;
+    }
+
     let sqlText = "";
     let params = null;
 
@@ -869,9 +909,8 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
 
     assistantMsg.sql = sqlText;
     assistantMsg.params = params;
-    // Сбрасываем scrollTop для автоматического скролла в конец при новом сообщении
-    const currentChat = getActiveChat();
-    if (currentChat) currentChat.scrollTop = undefined;
+    // Скроллим на начало ответа ассистента
+    scrollToAssistantMessage(assistantMsg.id);
     renderMessagesInternal();
 
     const encodedToken = await getEncodedAdminToken({ signal });
@@ -903,8 +942,22 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
       assistantMsg.executeResponseAt = executeEnd.toISOString();
       assistantMsg.executeDurationMs = executeDurationMs;
       assistantMsg.error = true;
-      assistantMsg.content = "❌ Ошибка выполнения SQL\n\n" + (execErr?.message || String(execErr));
-      if (currentChat) currentChat.scrollTop = undefined;
+      assistantMsg.collapsed = false; // Сразу раскрываем сообщение с ошибкой
+
+      // Извлекаем detail из ошибки, если есть
+      let errorText;
+      if (typeof execErr === 'object' && execErr !== null) {
+        errorText = execErr.detail || execErr.message || JSON.stringify(execErr, null, 2);
+      } else {
+        errorText = String(execErr);
+      }
+
+      // Выбираем иконку в зависимости от типа сообщения
+      const icon = errorText.toLowerCase().startsWith('clarification:') ? '❓' : '❌';
+      assistantMsg.content = icon + " " + errorText;
+
+      // Скроллим на начало ответа ассистента
+      scrollToAssistantMessage(assistantMsg.id);
       renderMessagesInternal();
       return;
     }
@@ -931,7 +984,8 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
         assistantMsg.csv = toCsv(rows, columns);
         assistantMsg.content = `✅ Result rendered as table (${rows.length} rows, ${columns.length} cols).`;
         assistantMsg.hasTable = true;
-        if (currentChat) currentChat.scrollTop = undefined;
+        // Скроллим на начало ответа ассистента
+        scrollToAssistantMessage(assistantMsg.id);
         renderMessagesInternal();
         return;
       }
@@ -940,13 +994,28 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
     // Во всех остальных случаях показываем как текстовый список
     const answerText = formatExecuteResult(executeResult);
     assistantMsg.content = answerText;
-    if (currentChat) currentChat.scrollTop = undefined;
+    // Скроллим на начало ответа ассистента
+    scrollToAssistantMessage(assistantMsg.id);
     renderMessagesInternal();
   } catch (error) {
     if (error?.name === "AbortError") return;
     assistantMsg.error = true;
-    assistantMsg.content = "❌ Ошибка при подготовке запроса\n\n" + (error?.message || String(error));
-    if (currentChat) currentChat.scrollTop = undefined;
+    assistantMsg.collapsed = false; // Сразу раскрываем сообщение с ошибкой
+
+    // Извлекаем detail из ошибки, если есть
+    let errorText;
+    if (typeof error === 'object' && error !== null) {
+      errorText = error.detail || error.message || JSON.stringify(error, null, 2);
+    } else {
+      errorText = String(error);
+    }
+
+    // Выбираем иконку в зависимости от типа сообщения
+    const icon = errorText.toLowerCase().startsWith('clarification:') ? '❓' : '❌';
+    assistantMsg.content = icon + " " + errorText;
+
+    // Скроллим на начало ответа ассистента
+    scrollToAssistantMessage(assistantMsg.id);
     renderMessagesInternal();
   }
 }
