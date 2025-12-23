@@ -10,6 +10,48 @@ import { newChat, clearMessages, exportJSON, toggleAllMessages, updateToggleAllB
 import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy } from './modules/ui.js';
 import { VoiceInput } from './modules/voice.js';
 
+// ============================================================================
+// История ввода
+// ============================================================================
+let inputHistory = []; // Массив истории сообщений пользователя
+let historyIndex = -1;  // Текущая позиция в истории (-1 = не в истории)
+let currentDraft = "";  // Текущий черновик при навигации по истории
+
+/**
+ * Получает историю сообщений пользователя из текущего чата
+ */
+function getUserMessageHistory() {
+  const chat = getActiveChat();
+  if (!chat) return [];
+  return chat.messages
+    .filter(m => m.role === "user")
+    .map(m => m.content || "")
+    .filter(content => content.trim() !== "");
+}
+
+/**
+ * Обновляет историю сообщений
+ */
+function updateInputHistory() {
+  inputHistory = getUserMessageHistory();
+  historyIndex = -1;
+  currentDraft = "";
+}
+
+/**
+ * Проверяет, находится ли курсор в самом начале поля ввода
+ */
+function isCursorAtStart(textarea) {
+  return textarea.selectionStart === 0;
+}
+
+/**
+ * Проверяет, находится ли курсор в самом конце поля ввода
+ */
+function isCursorAtEnd(textarea) {
+  return textarea.selectionEnd === textarea.value.length;
+}
+
 // Инициализация при загрузке DOM
 document.addEventListener("DOMContentLoaded", () => {
   const startTime = performance.now();
@@ -160,30 +202,47 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   promptInput.addEventListener("keydown", (e) => {
+    // ⭐ ArrowUp: навигация назад по истории (только если курсор в самом начале)
     if (e.key === "ArrowUp") {
-      const value = promptInput.value;
-      const cursorPos = promptInput.selectionStart;
-      if (!value && cursorPos === 0) {
-        e.preventDefault();
-        const last = getLastUserMessage();
-        if (last) {
-          setLastUserMessageCache(last);
-          promptInput.value = last;
+      if (isCursorAtStart(promptInput)) {
+        // Обновляем историю перед навигацией
+        if (historyIndex === -1) {
+          updateInputHistory();
+          currentDraft = promptInput.value; // Сохраняем текущий ввод
+        }
+
+        // Проверяем, можем ли двигаться назад
+        if (inputHistory.length > 0 && historyIndex < inputHistory.length - 1) {
+          e.preventDefault();
+          historyIndex++;
+          promptInput.value = inputHistory[inputHistory.length - 1 - historyIndex];
           autoGrow(promptInput);
-          requestAnimationFrame(() => {
-            promptInput.selectionStart = promptInput.selectionEnd = last.length;
-          });
+          // Курсор остаётся на месте (в начале)
         }
       }
       return;
     }
 
+    // ⭐ ArrowDown: навигация вперёд по истории (только если курсор в самом конце)
     if (e.key === "ArrowDown") {
-      if (promptInput.value === lastUserMessageCache) {
-        e.preventDefault();
-        promptInput.value = "";
-        autoGrow(promptInput);
-        setLastUserMessageCache("");
+      if (isCursorAtEnd(promptInput)) {
+        // Проверяем, находимся ли мы в режиме навигации по истории
+        if (historyIndex > -1) {
+          e.preventDefault();
+          historyIndex--;
+
+          if (historyIndex === -1) {
+            // Вернулись к текущему черновику
+            promptInput.value = currentDraft;
+            currentDraft = "";
+          } else {
+            // Переходим к следующему сообщению в истории
+            promptInput.value = inputHistory[inputHistory.length - 1 - historyIndex];
+          }
+
+          autoGrow(promptInput);
+          // Курсор остаётся на месте (в конце)
+        }
       }
       return;
     }
@@ -211,6 +270,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const rawText = promptInput.value || "";
     const text = normalizeUserMessage(rawText);
     if (!text) return;
+
+    // ⭐ Сбрасываем навигацию по истории при отправке
+    historyIndex = -1;
+    currentDraft = "";
 
     const chat = getActiveChat();
     if (chat.title === "New chat") chat.title = text.slice(0, 40);
