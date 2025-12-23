@@ -21,6 +21,9 @@ export function getChatStats(chat) {
   const userMessages = chat.messages.filter((m, idx) => idx > 0 && m.role === "user");
   const assistantMessages = chat.messages.filter((m, idx) => idx > 0 && m.role === "assistant");
 
+  // Если нет пользовательских сообщений, не показываем статистику
+  if (userMessages.length === 0) return "";
+
   const totalSize = chat.messages.reduce((sum, m) => {
     return sum + getMemorySize(m.content || '') + getMemorySize(m.sql || '');
   }, 0);

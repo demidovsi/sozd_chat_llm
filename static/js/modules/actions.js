@@ -66,13 +66,15 @@ export function newChat(promptInput, renderAll) {
   promptInput.focus();
 }
 
-export function clearMessages(renderMessages) {
+export function clearMessages(renderMessages, chatTitleEl, renderChatList) {
   const chat = getActiveChat();
   chat.messages = [
     { id: crypto.randomUUID(), role: "assistant", content: "Чат очищен. Напиши новое сообщение 👇" }
   ];
   saveState();
   renderMessages();
+  updateChatTitleWithStats(chatTitleEl);
+  if (renderChatList) renderChatList();
 }
 
 export function exportJSON() {

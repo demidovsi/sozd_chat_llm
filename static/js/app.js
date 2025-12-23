@@ -177,7 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /** ---------- Chat controls ---------- **/
   newChatBtn?.addEventListener("click", () => newChat(promptInput, renderAll));
-  clearBtn?.addEventListener("click", () => clearMessages(renderMessages));
+  clearBtn?.addEventListener("click", () => clearMessages(renderMessages, chatTitleEl, renderChatList));
   exportBtn?.addEventListener("click", exportJSON);
   searchInputEl?.addEventListener("input", renderChatList);
   toggleAllBtn?.addEventListener("click", () => toggleAllMessages(toggleAllBtn, renderMessages));
