@@ -12,3 +12,4 @@ export const config = {
 export const LS_KEY = "chatui_demo_v1";
 export const THEME_KEY = "chatui_theme";
 export const MAX_TABLE_COLS = 10;
+export const MAX_AXIS_LABEL_LENGTH = 20; // Максимальная длина метки на оси графика

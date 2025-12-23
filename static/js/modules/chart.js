@@ -2,6 +2,8 @@
  * Модуль для анализа данных и построения графиков
  */
 
+import { MAX_AXIS_LABEL_LENGTH } from './config.js';
+
 // Регистрация плагина zoom при загрузке модуля
 if (typeof Chart !== 'undefined' && typeof window.ChartZoom !== 'undefined') {
   Chart.register(window.ChartZoom);
@@ -273,7 +275,13 @@ export class ChartRenderer {
             text: config.xColumn,
             font: { size: 13, weight: 'bold' }
           },
-          grid: { color: 'rgba(0, 0, 0, 0.05)' }
+          grid: { color: 'rgba(0, 0, 0, 0.05)' },
+          ticks: {
+            callback: function(value, index) {
+              const label = this.getLabelForValue(value);
+              return label.length > MAX_AXIS_LABEL_LENGTH ? label.substring(0, MAX_AXIS_LABEL_LENGTH) + '...' : label;
+            }
+          }
         },
         y: {
           beginAtZero: true,
@@ -409,7 +417,8 @@ export class ChartRenderer {
           grid: { color: 'rgba(0, 0, 0, 0.1)' },
           ticks: {
             callback: function(value) {
-              return Number(value).toLocaleString('ru-RU');
+              const formatted = Number(value).toLocaleString('ru-RU');
+              return formatted.length > MAX_AXIS_LABEL_LENGTH ? formatted.substring(0, MAX_AXIS_LABEL_LENGTH) + '...' : formatted;
             }
           }
         },
