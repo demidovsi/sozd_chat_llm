@@ -10,6 +10,7 @@ import { updateChatTitleWithStats } from './actions.js';
 import { fetchSqlText, executeSqlViaApi } from './api.js';
 import { getEncodedAdminToken } from './crypto.js';
 import { MAX_TABLE_COLS, config } from './config.js';
+import { ChartAnalyzer, ChartRenderer } from './chart.js';
 
 // ============================================================================
 // Глобальные элементы DOM (устанавливаются через setElements)
@@ -285,6 +286,7 @@ export function renderChatList() {
             // ⭐ Обновляем заголовок, если это активный чат
             if (chat.id === state.activeChatId && chatTitleEl) {
               chatTitleEl.textContent = newTitle;
+              updateChatTitleWithStats(chatTitleEl);
             }
           }
         }
@@ -629,6 +631,19 @@ function renderMessagesInternal() {
         const csv = toCsv(rows, columns);
         copyToClipboard(csv);
       };
+
+      // ⭐ Кнопка построения графика
+      if (m.chartAnalysis && m.chartAnalysis.suitable) {
+        const chartBtn = document.createElement('button');
+        chartBtn.className = 'sql-btn btn-chart';
+        chartBtn.textContent = '📊 График';
+        chartBtn.title = 'Построить график';
+        chartBtn.onclick = (e) => {
+          e.stopPropagation();
+          showChartModal(m);
+        };
+        csvBtn.insertAdjacentElement('beforebegin', chartBtn);
+      }
 
       // Обработчик для кнопок скачивания файлов из GCS
       const downloadBtns = tblWrap.querySelectorAll('.download-btn');
@@ -984,6 +999,14 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
         assistantMsg.csv = toCsv(rows, columns);
         assistantMsg.content = `✅ Result rendered as table (${rows.length} rows, ${columns.length} cols).`;
         assistantMsg.hasTable = true;
+
+        // ⭐ НОВЫЙ КОД: Анализ для графиков
+        const chartAnalysis = ChartAnalyzer.analyzeForChart(rows, columns);
+        if (chartAnalysis.suitable) {
+          assistantMsg.chartAnalysis = chartAnalysis;
+          assistantMsg.content += `\n\n📊 Данные подходят для визуализации. Доступные типы графиков: ${chartAnalysis.charts.map(c => c.label).join(', ')}.`;
+        }
+
         // Скроллим на начало ответа ассистента
         scrollToAssistantMessage(assistantMsg.id);
         renderMessagesInternal();
@@ -1018,4 +1041,88 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
     scrollToAssistantMessage(assistantMsg.id);
     renderMessagesInternal();
   }
+}
+
+/**
+ * Показывает модальное окно с выбором типа графика
+ * @param {Object} msg - сообщение с данными и chartAnalysis
+ */
+export function showChartModal(msg) {
+  const modal = document.getElementById('chartModal');
+  if (!modal) {
+    console.error('Chart modal element not found');
+    return;
+  }
+
+  const chartTypeSelect = modal.querySelector('#chartTypeSelect');
+  const chartContainer = modal.querySelector('#chartContainer');
+
+  if (!chartTypeSelect || !chartContainer) {
+    console.error('Chart modal elements not found');
+    return;
+  }
+
+  // Очистка предыдущего содержимого
+  chartTypeSelect.innerHTML = '';
+  chartContainer.innerHTML = '';
+
+  // Заполнение списка типов графиков
+  msg.chartAnalysis.charts.forEach((chartConfig, idx) => {
+    const option = document.createElement('option');
+    option.value = idx;
+    option.textContent = chartConfig.label;
+    chartTypeSelect.appendChild(option);
+  });
+
+  let currentChart = null;
+
+  // Обработчик изменения типа графика
+  const renderSelectedChart = () => {
+    const selectedIdx = parseInt(chartTypeSelect.value);
+    const chartConfig = msg.chartAnalysis.charts[selectedIdx];
+
+    chartContainer.innerHTML = ''; // Очистка
+
+    // Уничтожаем предыдущий график
+    if (currentChart) {
+      currentChart.destroy();
+      currentChart = null;
+    }
+
+    try {
+      currentChart = ChartRenderer.renderChart(chartContainer, msg.table.rows, chartConfig);
+    } catch (err) {
+      chartContainer.innerHTML = `<div class="error">❌ Ошибка построения графика: ${err.message}</div>`;
+      console.error('Chart rendering error:', err);
+    }
+  };
+
+  // Добавляем обработчик события
+  chartTypeSelect.onchange = renderSelectedChart;
+
+  // Показать модальное окно
+  modal.style.display = 'flex';
+
+  // Построить первый график по умолчанию
+  renderSelectedChart();
+
+  // Закрытие модального окна
+  const closeModal = () => {
+    if (currentChart) {
+      currentChart.destroy();
+      currentChart = null;
+    }
+    modal.style.display = 'none';
+  };
+
+  const closeBtn = modal.querySelector('.close-modal');
+  if (closeBtn) {
+    closeBtn.onclick = closeModal;
+  }
+
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      closeModal();
+    }
+  };
 }
