@@ -2,6 +2,11 @@
  * Модуль для анализа данных и построения графиков
  */
 
+// Регистрация плагина zoom при загрузке модуля
+if (typeof Chart !== 'undefined' && typeof window.ChartZoom !== 'undefined') {
+  Chart.register(window.ChartZoom);
+}
+
 /**
  * Анализ данных для определения пригодности к построению графиков
  */
@@ -208,11 +213,82 @@ export class ChartRenderer {
       responsive: true,
       maintainAspectRatio: true,
       plugins: {
-        legend: { display: true },
-        title: { display: true, text: `${config.yColumns.join(', ')} по ${config.xColumn}` }
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            usePointStyle: true,
+            padding: 15,
+            font: { size: 12 }
+          }
+        },
+        tooltip: {
+          enabled: true,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          titleFont: { size: 14, weight: 'bold' },
+          bodyFont: { size: 13 },
+          padding: 12,
+          cornerRadius: 6,
+          displayColors: true,
+          callbacks: {
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              label += Number(context.parsed.y).toLocaleString('ru-RU');
+              return label;
+            }
+          }
+        },
+        datalabels: {
+          display: false // Отключаем для line/bar, чтобы не загромождать
+        },
+        zoom: {
+          zoom: {
+            wheel: {
+              enabled: true,
+              modifierKey: 'ctrl'
+            },
+            pinch: {
+              enabled: true
+            },
+            mode: 'xy'
+          },
+          pan: {
+            enabled: true,
+            mode: 'xy',
+            scaleMode: 'xy'
+          },
+          limits: {
+            x: { min: 'original', max: 'original' },
+            y: { min: 'original', max: 'original' }
+          }
+        }
       },
       scales: {
-        y: { beginAtZero: true }
+        x: {
+          title: {
+            display: true,
+            text: config.xColumn,
+            font: { size: 13, weight: 'bold' }
+          },
+          grid: { color: 'rgba(0, 0, 0, 0.05)' }
+        },
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: config.yColumns.join(', '),
+            font: { size: 13, weight: 'bold' }
+          },
+          grid: { color: 'rgba(0, 0, 0, 0.1)' },
+          ticks: {
+            callback: function(value) {
+              return Number(value).toLocaleString('ru-RU');
+            }
+          }
+        }
       }
     };
   }
@@ -222,7 +298,57 @@ export class ChartRenderer {
       responsive: true,
       maintainAspectRatio: true,
       plugins: {
-        legend: { position: 'right' }
+        legend: {
+          position: 'right',
+          labels: {
+            usePointStyle: true,
+            padding: 12,
+            font: { size: 12 },
+            generateLabels: function(chart) {
+              const data = chart.data;
+              if (data.labels.length && data.datasets.length) {
+                return data.labels.map((label, i) => {
+                  const value = data.datasets[0].data[i];
+                  const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                  const percentage = ((value / total) * 100).toFixed(1);
+                  return {
+                    text: `${label}: ${percentage}%`,
+                    fillStyle: data.datasets[0].backgroundColor[i],
+                    hidden: false,
+                    index: i
+                  };
+                });
+              }
+              return [];
+            }
+          }
+        },
+        tooltip: {
+          enabled: true,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          titleFont: { size: 14, weight: 'bold' },
+          bodyFont: { size: 13 },
+          padding: 12,
+          cornerRadius: 6,
+          callbacks: {
+            label: function(context) {
+              const label = context.label || '';
+              const value = Number(context.parsed).toLocaleString('ru-RU');
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const percentage = ((context.parsed / total) * 100).toFixed(1);
+              return `${label}: ${value} (${percentage}%)`;
+            }
+          }
+        },
+        datalabels: {
+          color: '#fff',
+          font: { size: 14, weight: 'bold' },
+          formatter: (value, context) => {
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = ((value / total) * 100).toFixed(1);
+            return percentage > 5 ? `${percentage}%` : ''; // Показываем только если > 5%
+          }
+        }
       }
     };
   }
@@ -233,11 +359,73 @@ export class ChartRenderer {
       maintainAspectRatio: true,
       plugins: {
         legend: { display: false },
-        title: { display: true, text: `${config.xColumn} vs ${config.yColumn}` }
+        tooltip: {
+          enabled: true,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          titleFont: { size: 14, weight: 'bold' },
+          bodyFont: { size: 13 },
+          padding: 12,
+          cornerRadius: 6,
+          callbacks: {
+            label: function(context) {
+              const x = Number(context.parsed.x).toLocaleString('ru-RU');
+              const y = Number(context.parsed.y).toLocaleString('ru-RU');
+              return `${config.xColumn}: ${x}, ${config.yColumn}: ${y}`;
+            }
+          }
+        },
+        datalabels: {
+          display: false // Отключаем для scatter, чтобы не загромождать
+        },
+        zoom: {
+          zoom: {
+            wheel: {
+              enabled: true,
+              modifierKey: 'ctrl'
+            },
+            pinch: {
+              enabled: true
+            },
+            mode: 'xy'
+          },
+          pan: {
+            enabled: true,
+            mode: 'xy',
+            scaleMode: 'xy'
+          },
+          limits: {
+            x: { min: 'original', max: 'original' },
+            y: { min: 'original', max: 'original' }
+          }
+        }
       },
       scales: {
-        x: { title: { display: true, text: config.xColumn } },
-        y: { title: { display: true, text: config.yColumn } }
+        x: {
+          title: {
+            display: true,
+            text: config.xColumn,
+            font: { size: 13, weight: 'bold' }
+          },
+          grid: { color: 'rgba(0, 0, 0, 0.1)' },
+          ticks: {
+            callback: function(value) {
+              return Number(value).toLocaleString('ru-RU');
+            }
+          }
+        },
+        y: {
+          title: {
+            display: true,
+            text: config.yColumn,
+            font: { size: 13, weight: 'bold' }
+          },
+          grid: { color: 'rgba(0, 0, 0, 0.1)' },
+          ticks: {
+            callback: function(value) {
+              return Number(value).toLocaleString('ru-RU');
+            }
+          }
+        }
       }
     };
   }

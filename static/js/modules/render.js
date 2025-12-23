@@ -1106,6 +1106,76 @@ export function showChartModal(msg) {
   // Построить первый график по умолчанию
   renderSelectedChart();
 
+  // ⭐ Обработчик сброса масштаба
+  const resetZoomBtn = modal.querySelector('#resetZoomBtn');
+  if (resetZoomBtn) {
+    resetZoomBtn.onclick = () => {
+      if (currentChart && typeof currentChart.resetZoom === 'function') {
+        currentChart.resetZoom();
+      }
+    };
+  }
+
+  // ⭐ Обработчик копирования графика в буфер обмена
+  const copyChartBtn = modal.querySelector('#copyChartBtn');
+  if (copyChartBtn) {
+    copyChartBtn.onclick = async () => {
+      if (!currentChart || !currentChart.canvas) {
+        alert('График не найден');
+        return;
+      }
+
+      const originalText = copyChartBtn.textContent;
+      copyChartBtn.disabled = true;
+      copyChartBtn.textContent = '⏳ Копирование...';
+
+      try {
+        // Получаем canvas элемент
+        const canvas = currentChart.canvas;
+
+        // Преобразуем canvas в blob
+        const blob = await new Promise((resolve) => {
+          canvas.toBlob(resolve, 'image/png');
+        });
+
+        if (!blob) {
+          throw new Error('Не удалось создать изображение');
+        }
+
+        // Копируем blob в буфер обмена
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'image/png': blob
+          })
+        ]);
+
+        copyChartBtn.textContent = '✅ Скопировано!';
+        setTimeout(() => {
+          copyChartBtn.textContent = originalText;
+          copyChartBtn.disabled = false;
+        }, 2000);
+      } catch (err) {
+        console.error('Error copying chart:', err);
+        copyChartBtn.textContent = '❌ Ошибка';
+        setTimeout(() => {
+          copyChartBtn.textContent = originalText;
+          copyChartBtn.disabled = false;
+        }, 2000);
+
+        // Fallback: предлагаем скачать изображение
+        if (err.name === 'NotAllowedError' || err.message.includes('clipboard')) {
+          if (confirm('Браузер не поддерживает копирование изображений в буфер обмена. Скачать график как изображение?')) {
+            const canvas = currentChart.canvas;
+            const link = document.createElement('a');
+            link.download = `chart-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+          }
+        }
+      }
+    };
+  }
+
   // Закрытие модального окна
   const closeModal = () => {
     if (currentChart) {

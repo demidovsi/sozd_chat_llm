@@ -110,6 +110,12 @@
         <div class="chart-controls">
           <label for="chartTypeSelect">Тип графика:</label>
           <select id="chartTypeSelect" class="chart-type-select"></select>
+          <button id="copyChartBtn" class="btn btn-sm btn-copy-chart" title="Копировать график в буфер обмена">
+            📋 Копировать
+          </button>
+          <button id="resetZoomBtn" class="btn btn-sm btn-reset-zoom" title="Сбросить масштаб">
+            🔄 Сброс
+          </button>
         </div>
         <div id="chartContainer" class="chart-container"></div>
       </div>
@@ -118,10 +124,14 @@
 
   <!-- Chart.js для построения графиков -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Chart.js плагины -->
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <!-- Markdown renderer (lightweight) -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <!-- Optional: code highlighting -->
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/common.min.js"></script>
+  <!-- Optional: code highlighting (DISABLED due to require error) -->
+  <!-- <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.10.0/build/highlight.min.js"></script> -->
 
   <script type="module" src="/static/js/app.js"></script>
 </body>
