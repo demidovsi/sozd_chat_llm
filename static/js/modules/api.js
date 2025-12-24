@@ -3,7 +3,7 @@
  */
 
 import { config } from './config.js';
-import { restSessionId, setRestSessionId } from './state.js';
+import { restSessionId, setRestSessionId, dbSchema } from './state.js';
 
 export async function fetchSqlText(userText, { signal } = {}) {
   const url = config.URL_rest + "sql/text";
@@ -28,6 +28,11 @@ export async function fetchSqlText(userText, { signal } = {}) {
   // Добавляем session_id в тело запроса, если он есть
   if (restSessionId) {
     requestBody.session_id = restSessionId;
+  }
+
+  // Добавляем db_schema в тело запроса
+  if (dbSchema) {
+    requestBody.db_schema = dbSchema;
   }
 
   try {

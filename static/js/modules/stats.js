@@ -2,7 +2,8 @@
  * Статистика и метрики чатов
  */
 
-import { state } from './state.js';
+import { state, dbSchema } from './state.js';
+import { DB_SCHEMAS } from './config.js';
 
 export function getMemorySize(text) {
   if (!text) return 0;
@@ -35,10 +36,12 @@ export function updateGlobalStats() {
   const userSubEl = document.querySelector('.user-sub');
   if (!userSubEl || !state.chats) return;
 
-  const totalChats = state.chats.length;
+  // Фильтруем чаты по текущей схеме
+  const schemaChats = state.chats.filter(c => c.schema === dbSchema);
+  const totalChats = schemaChats.length;
   let totalSize = 0;
 
-  state.chats.forEach(chat => {
+  schemaChats.forEach(chat => {
     if (chat.messages) {
       totalSize += chat.messages.reduce((sum, m) => {
         return sum + getMemorySize(m.content || '') + getMemorySize(m.sql || '');
@@ -46,5 +49,8 @@ export function updateGlobalStats() {
     }
   });
 
-  userSubEl.textContent = `${totalChats} chats • ${formatSize(totalSize)}`;
+  // Находим название текущей схемы
+  const schemaLabel = DB_SCHEMAS.find(s => s.value === dbSchema)?.label || dbSchema;
+
+  userSubEl.textContent = `${schemaLabel} • ${totalChats} чатов • ${formatSize(totalSize)}`;
 }

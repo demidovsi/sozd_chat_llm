@@ -2,7 +2,7 @@
  * Действия пользователя (CRUD операции с чатами и сообщениями)
  */
 
-import { state, saveState, createChat, getActiveChat } from './state.js';
+import { state, saveState, createChat, getActiveChat, dbSchema } from './state.js';
 import { getChatStats, updateGlobalStats } from './stats.js';
 
 export function deleteMessage(chatId, messageId, messagesEl, chatTitleEl, renderMessages, updateChatTitleWithStats) {
@@ -44,12 +44,17 @@ export function deleteChat(chatId, renderAll) {
 
   state.chats.splice(idx, 1);
 
-  if (!state.chats.length) {
-    const chat = createChat("New chat");
+  // Проверяем, остались ли чаты для текущей схемы
+  const schemaChats = state.chats.filter(c => c.schema === dbSchema);
+
+  if (schemaChats.length === 0) {
+    // Если нет чатов для текущей схемы, создаём новый
+    const chat = createChat("New chat", dbSchema);
     state.chats.push(chat);
     state.activeChatId = chat.id;
   } else if (state.activeChatId === chatId) {
-    state.activeChatId = state.chats[0].id;
+    // Если удалили активный чат, переключаемся на первый чат текущей схемы
+    state.activeChatId = schemaChats[0].id;
   }
 
   saveState();
@@ -58,7 +63,7 @@ export function deleteChat(chatId, renderAll) {
 
 export function newChat(promptInput, renderAll) {
   const title = prompt("Введите имя чата:", "New chat") || "New chat";
-  const chat = createChat(title.trim() || "New chat");
+  const chat = createChat(title.trim() || "New chat", dbSchema);
   state.chats.push(chat);
   state.activeChatId = chat.id;
   saveState();

@@ -2,8 +2,8 @@
  * Модуль рендеринга интерфейса
  */
 
-import { state, saveState, getActiveChat } from './state.js';
-import { copyToClipboard, makeLinksOpenInNewTab, isArrayOfObjects, getColumnsFromRows, downloadFromGCS } from './utils.js';
+import { state, saveState, getActiveChat, dbSchema } from './state.js';
+import { copyToClipboard, makeLinksOpenInNewTab, isArrayOfObjects, getColumnsFromRows, downloadFromGCS, hasParams } from './utils.js';
 import { escapeCell, toCsv, formatTimeForMeta, formatDurationMs, formatExecuteResult } from './formatters.js';
 import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy } from './ui.js';
 import { updateChatTitleWithStats } from './actions.js';
@@ -223,8 +223,10 @@ export function renderChatList() {
   const q = (searchInputEl?.value || "").trim().toLowerCase();
 
   chatListEl.innerHTML = "";
+
   const chats = state.chats
     .slice()
+    .filter(c => c.schema === dbSchema) // Показываем только чаты текущей схемы
     .sort((a, b) => b.createdAt - a.createdAt)
     .filter(c => {
       if (!q) return true;
@@ -543,8 +545,8 @@ function renderMessagesInternal() {
       sqlPre.appendChild(sqlCode);
       sqlBody.appendChild(sqlPre);
 
-      // блок Params
-      if (m.params) {
+      // блок Params (только если params не пустой)
+      if (hasParams(m.params)) {
         const paramsPre = document.createElement("pre");
         paramsPre.className = "sql-pre params-pre";
         paramsPre.textContent = "Params:\n" + JSON.stringify(m.params, null, 2);
@@ -597,11 +599,87 @@ function renderMessagesInternal() {
       const table = document.createElement('table');
       table.className = 'tbl';
 
+      // Определяем числовые колонки (проверяем первые несколько строк)
+      const isNumericColumn = (colName) => {
+        const sampleSize = Math.min(5, rows.length);
+        let numericCount = 0;
+        for (let i = 0; i < sampleSize; i++) {
+          const val = rows[i][colName];
+          if (val != null && !isNaN(Number(val)) && String(val).trim() !== '') {
+            numericCount++;
+          }
+        }
+        return numericCount === sampleSize && sampleSize > 0;
+      };
+
+      const numericColumns = new Set(columns.filter(isNumericColumn));
+
+      // Проверка, содержит ли колонка URL
+      const containsUrl = (colName) => {
+        const sampleSize = Math.min(5, rows.length);
+        const urlPattern = /^(https?:\/\/|www\.)/i;
+        for (let i = 0; i < sampleSize; i++) {
+          const val = rows[i][colName];
+          if (val != null && urlPattern.test(String(val).trim())) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      // Анализируем ширину текстовых колонок на основе содержимого
+      const getColumnMaxLength = (colName) => {
+        const sampleSize = Math.min(5, rows.length);
+        let maxLength = colName.length; // Учитываем длину заголовка
+
+        // Если колонка содержит URL, устанавливаем минимальную длину 100
+        if (containsUrl(colName)) {
+          maxLength = Math.max(maxLength, 100);
+        }
+
+        for (let i = 0; i < sampleSize; i++) {
+          const val = rows[i][colName];
+          if (val != null) {
+            const strVal = String(val);
+            // Для многострочного текста берем длину самой длинной строки
+            const lines = strVal.split('\n');
+            const maxLineLength = Math.max(...lines.map(line => line.length));
+            maxLength = Math.max(maxLength, maxLineLength);
+          }
+        }
+        return maxLength;
+      };
+
+      // Вычисляем относительные ширины для текстовых колонок
+      const columnWidths = new Map();
+      const textColumns = columns.filter(col => !numericColumns.has(col));
+
+      if (textColumns.length > 1) {
+        const maxLengths = textColumns.map(col => ({
+          col,
+          length: getColumnMaxLength(col)
+        }));
+
+        const totalLength = maxLengths.reduce((sum, item) => sum + item.length, 0);
+
+        // Вычисляем процентную ширину для каждой колонки
+        maxLengths.forEach(({ col, length }) => {
+          const percentage = Math.max(10, Math.min(60, (length / totalLength) * 100));
+          columnWidths.set(col, percentage);
+        });
+      }
+
       const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
       for (const col of columns) {
         const th = document.createElement('th');
         th.textContent = col;
+        if (numericColumns.has(col)) {
+          th.classList.add('numeric-col');
+        } else if (columnWidths.has(col)) {
+          // Устанавливаем ширину для текстовых колонок
+          th.style.width = columnWidths.get(col) + '%';
+        }
         headerRow.appendChild(th);
       }
       thead.appendChild(headerRow);
@@ -612,9 +690,39 @@ function renderMessagesInternal() {
         const tr = document.createElement('tr');
         for (const col of columns) {
           const td = document.createElement('td');
-          // Передаем undefined как первый параметр, чтобы escapeCell сама получила значение по пути
-          // Это нужно для поддержки путей с точкой (например, "metadata.id")
-          td.innerHTML = escapeCell(undefined, col, row);
+
+          // Добавляем класс для числовых колонок
+          if (numericColumns.has(col)) {
+            td.classList.add('numeric-col');
+          }
+
+          // Получаем значение ячейки
+          const cellValue = row[col];
+          const cellStr = cellValue != null ? String(cellValue) : '';
+
+          // Если значение содержит переносы строк - используем textarea
+          if (cellStr.includes('\n')) {
+            const textarea = document.createElement('textarea');
+            textarea.className = 'table-cell-textarea';
+            textarea.value = cellStr;
+            textarea.readOnly = true;
+
+            // Функция для автоматической подстройки высоты
+            const adjustHeight = () => {
+              textarea.style.height = 'auto';
+              // Добавляем небольшой запас для padding и border
+              textarea.style.height = (textarea.scrollHeight + 4) + 'px';
+            };
+
+            // Подстраиваем высоту после добавления в DOM
+            requestAnimationFrame(adjustHeight);
+
+            td.appendChild(textarea);
+          } else {
+            // Обычная ячейка
+            td.innerHTML = escapeCell(undefined, col, row);
+          }
+
           tr.appendChild(td);
         }
         tbody.appendChild(tr);

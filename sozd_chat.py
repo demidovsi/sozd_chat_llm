@@ -4,7 +4,7 @@ import os
 import logging
 import base64
 
-from flask import Flask, jsonify, send_file, request, make_response
+from flask import Flask, jsonify, send_file, request
 from flask import render_template
 from google.cloud import storage
 from io import BytesIO
@@ -164,7 +164,7 @@ def download_file():
 
         if not blob.exists():
             logger.info(f"File {filename} not found, trying .7z version")
-            # Если файл не найден, проверяем версию с .7z
+            # Если файл не найден, проверяем версию с .7z.
             # Заменяем расширение на .7z (например: document.pdf -> document.7z)
             if '.' in filename:
                 base_name = filename.rsplit('.', 1)[0]
@@ -248,4 +248,3 @@ def download_file():
 if __name__ == '__main__':
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     app.run(port=config.OWN_PORT, host=config.OWN_HOST)
-

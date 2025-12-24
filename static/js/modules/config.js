@@ -11,5 +11,16 @@ export const config = {
 
 export const LS_KEY = "chatui_demo_v1";
 export const THEME_KEY = "chatui_theme";
-export const MAX_TABLE_COLS = 10;
+export const DB_SCHEMA_KEY = "chatui_db_schema";
+export const MAX_TABLE_COLS = 20; // Максимальное количество колонок в таблице
 export const MAX_AXIS_LABEL_LENGTH = 20; // Максимальная длина метки на оси графика
+
+// Доступные схемы БД
+export const DB_SCHEMAS = [
+  { value: "sozd", label: "СОЗД" },
+  { value: "lib", label: "Гаазе" },
+  { value: "family", label: "Семья" },
+  { value: "urban", label: "Игра" },
+  { value: "gen", label: "ГЕО" },
+  { value: "evg", label: "ЕВГЕНИЯ" }
+];

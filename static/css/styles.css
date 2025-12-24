@@ -79,6 +79,7 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+      min-height: 0; /* Необходимо для корректной работы overflow в flex */
     }
 
     .sidebar-top {
@@ -108,11 +109,31 @@
 
     .chat-list {
       flex: 1;
-      overflow: auto;
+      overflow-y: auto; /* Вертикальная прокрутка */
+      overflow-x: hidden; /* Скрываем горизонтальную прокрутку */
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-height: 0; /* Необходимо для flex */
       padding-right: 4px;
+    }
+
+    /* Стили скроллбара для списка чатов */
+    .chat-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .chat-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .chat-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    .chat-list::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
     }
 
     .chat-item {
@@ -244,6 +265,28 @@
     .topbar-actions {
       display: flex;
       gap: 8px;
+      align-items: center;
+    }
+
+    .db-schema-select {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background-color: var(--bg-primary);
+      color: var(--text);
+      font-size: 0.875rem;
+      cursor: pointer;
+      min-width: 120px;
+    }
+
+    .db-schema-select:hover {
+      border-color: var(--text-secondary);
+    }
+
+    .db-schema-select:focus {
+      outline: none;
+      border-color: rgba(59, 130, 246, 0.5);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
     /* ===== MESSAGES ===== */
@@ -576,7 +619,8 @@
 
     .tbl-scroller {
       overflow: auto;
-      max-height: 360px;
+      max-height: 500px; /* Увеличена высота для большего количества строк */
+      max-width: 100%; /* Полная ширина контейнера */
     }
 
     .tbl {
@@ -592,6 +636,14 @@
       text-align: left;
     }
 
+    /* Числовые колонки - уменьшенная ширина и выравнивание по правому краю */
+    .tbl th.numeric-col, .tbl td.numeric-col {
+      max-width: 120px;
+      width: auto;
+      text-align: right;
+      white-space: nowrap;
+    }
+
     /* Ячейки таблицы по умолчанию не переносят текст */
     .tbl th {
       white-space: nowrap;
@@ -599,9 +651,10 @@
 
     /* Ячейки с данными могут переносить длинный контент (например, URL) */
     .tbl td {
-      max-width: 400px;
+      max-width: 600px; /* Увеличена ширина ячеек */
       word-wrap: break-word;
       overflow-wrap: break-word;
+      white-space: normal; /* Разрешаем перенос строк */
     }
 
     .tbl th {
@@ -618,6 +671,29 @@
 
     .tbl td {
       font-size: 12px;
+    }
+
+    /* Textarea в ячейках таблицы для многострочного текста */
+    .table-cell-textarea {
+      width: 100%;
+      min-height: 40px;
+      padding: 4px 0;
+      border: none;
+      background-color: transparent;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12px;
+      line-height: 1.4;
+      resize: none; /* Отключаем ручное изменение размера */
+      overflow-y: hidden; /* Скрываем вертикальный скроллбар */
+      overflow-x: auto; /* Горизонтальный скроллбар при необходимости */
+      white-space: pre-wrap; /* Сохраняем переносы строк */
+      word-wrap: break-word;
+      box-sizing: border-box;
+    }
+
+    .table-cell-textarea:focus {
+      outline: none;
     }
 
     /* ===== COMPOSER ===== */

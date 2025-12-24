@@ -3,12 +3,13 @@
  */
 
 import { el, normalizeUserMessage } from './modules/utils.js';
-import { state, setState, loadState, saveState, getActiveChat, setCurrentAbortController, setIsGenerating, setLastUserMessageCache, currentAbortController, isGenerating, lastUserMessageCache } from './modules/state.js';
+import { state, setState, loadState, saveState, getActiveChat, setCurrentAbortController, setIsGenerating, setLastUserMessageCache, currentAbortController, isGenerating, lastUserMessageCache, dbSchema, setDbSchema, createChat } from './modules/state.js';
 import { initTheme } from './modules/theme.js';
 import { renderAll, renderChatList, renderMessages, fakeStreamAnswer, setElements } from './modules/render.js';
 import { newChat, clearMessages, exportJSON, toggleAllMessages, updateToggleAllButton, getLastUserMessage } from './modules/actions.js';
 import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy } from './modules/ui.js';
 import { VoiceInput } from './modules/voice.js';
+import { DB_SCHEMAS } from './modules/config.js';
 
 // ============================================================================
 // История ввода
@@ -79,6 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const scrollToEndBtn = el("scrollToEndBtn");
   const scrollToTopBtn = el("scrollToTopBtn");
   const versionInfoEl = el("versionInfo");
+  const dbSchemaSelect = el("dbSchemaSelect");
 
   // Проверка элементов
   if (!chatListEl || !messagesEl || !chatTitleEl) {
@@ -99,6 +101,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Инициализация темы
   initTheme(themeSelect, themeToggleBtn);
+
+  /** ---------- DB Schema Select ---------- **/
+  if (dbSchemaSelect) {
+    // Заполняем select опциями из конфига
+    DB_SCHEMAS.forEach(schema => {
+      const option = document.createElement('option');
+      option.value = schema.value;
+      option.textContent = schema.label;
+      dbSchemaSelect.appendChild(option);
+    });
+
+    // Устанавливаем текущее значение
+    if (dbSchema) {
+      dbSchemaSelect.value = dbSchema;
+    }
+
+    // Обработчик изменения схемы
+    dbSchemaSelect.addEventListener('change', (e) => {
+      const newSchema = e.target.value;
+      setDbSchema(newSchema);
+      console.log(`DB Schema changed to: ${newSchema}`);
+
+      // Ищем чаты для новой схемы
+      const schemaChats = state.chats.filter(c => c.schema === newSchema);
+
+      if (schemaChats.length > 0) {
+        // Переключаемся на первый чат новой схемы
+        state.activeChatId = schemaChats[0].id;
+        saveState();
+      } else {
+        // Создаём новый чат для новой схемы
+        const newChat = createChat("New chat", newSchema);
+        state.chats.push(newChat);
+        state.activeChatId = newChat.id;
+        saveState();
+      }
+
+      // Перерендериваем UI
+      renderAll();
+    });
+  }
 
   /** ---------- Voice Input ---------- **/
   let voiceInput = null;
