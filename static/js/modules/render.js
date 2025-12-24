@@ -627,6 +627,9 @@ function renderMessagesInternal() {
         return false;
       };
 
+      // Определяем URL колонки для установки минимальной ширины
+      const urlColumns = new Set(columns.filter(containsUrl));
+
       // Анализируем ширину текстовых колонок на основе содержимого
       const getColumnMaxLength = (colName) => {
         const sampleSize = Math.min(5, rows.length);
@@ -680,6 +683,10 @@ function renderMessagesInternal() {
           // Устанавливаем ширину для текстовых колонок
           th.style.width = columnWidths.get(col) + '%';
         }
+        // Для URL колонок устанавливаем минимальную ширину
+        if (urlColumns.has(col)) {
+          th.style.minWidth = '200px';
+        }
         headerRow.appendChild(th);
       }
       thead.appendChild(headerRow);
@@ -694,6 +701,11 @@ function renderMessagesInternal() {
           // Добавляем класс для числовых колонок
           if (numericColumns.has(col)) {
             td.classList.add('numeric-col');
+          }
+
+          // Для URL колонок устанавливаем минимальную ширину
+          if (urlColumns.has(col)) {
+            td.style.minWidth = '200px';
           }
 
           // Получаем значение ячейки
