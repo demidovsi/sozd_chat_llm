@@ -101,3 +101,39 @@ export async function executeSqlViaApi({ sqlText, params, token }, { signal } = 
   if (ct.includes("application/json")) return await res.json();
   return await res.text();
 }
+
+export async function getApiVersion() {
+  const url = config.URL_rest + "v1/version";
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json"
+    }
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`VERSION HTTP ${res.status}: ${text}`);
+  }
+
+  return await res.json();
+}
+
+export async function clearApiCache() {
+  const url = config.URL_rest + "v1/cache/clear";
+
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      "Accept": "application/json"
+    }
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`CACHE HTTP ${res.status}: ${text}`);
+  }
+
+  return await res.json();
+}

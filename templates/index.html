@@ -12,7 +12,22 @@
     <!-- Sidebar -->
     <aside class="sidebar" aria-label="History sidebar">
       <div class="sidebar-top">
-        <button id="newChatBtn" class="btn btn-primary">+ New chat</button>
+        <div class="sidebar-buttons">
+          <button id="newChatBtn" class="btn btn-primary">+ New chat</button>
+          <div class="tools-menu-container">
+            <button id="toolsBtn" class="btn btn-ghost btn-icon" title="Инструменты">⚙️</button>
+            <div id="toolsMenu" class="tools-menu" style="display: none;">
+              <div class="tools-menu-item" id="showVersionBtn">
+                <span class="tools-menu-icon">ℹ️</span>
+                <span>Версия API</span>
+              </div>
+              <div class="tools-menu-item" id="clearCacheBtn">
+                <span class="tools-menu-icon">🗑️</span>
+                <span>Очистить кэш</span>
+              </div>
+            </div>
+          </div>
+        </div>
         <div id="versionInfo" class="version-info"></div>
           <!--
           <select id="themeSelect" class="input">

@@ -24,7 +24,17 @@ export class ChartAnalyzer {
       return { suitable: false, reason: 'Недостаточно данных (минимум 2 строки)' };
     }
 
-    const columnTypes = this.detectColumnTypes(rows, columns);
+    // Исключаем текстовые колонки из анализа
+    const excludedColumns = ['description', 'invoice'];
+    const filteredColumns = columns.filter(col =>
+      !excludedColumns.includes(col.toLowerCase())
+    );
+
+    if (filteredColumns.length === 0) {
+      return { suitable: false, reason: 'Нет подходящих колонок для визуализации' };
+    }
+
+    const columnTypes = this.detectColumnTypes(rows, filteredColumns);
     const numericColumns = columnTypes.filter(c => c.type === 'numeric');
     const categoricalColumns = columnTypes.filter(c => c.type === 'categorical');
     const dateColumns = columnTypes.filter(c => c.type === 'date');

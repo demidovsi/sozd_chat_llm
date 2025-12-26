@@ -10,6 +10,7 @@ import { newChat, clearMessages, exportJSON, toggleAllMessages, updateToggleAllB
 import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy } from './modules/ui.js';
 import { VoiceInput } from './modules/voice.js';
 import { DB_SCHEMAS } from './modules/config.js';
+import { getApiVersion, clearApiCache } from './modules/api.js';
 
 // ============================================================================
 // История ввода
@@ -81,6 +82,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const scrollToTopBtn = el("scrollToTopBtn");
   const versionInfoEl = el("versionInfo");
   const dbSchemaSelect = el("dbSchemaSelect");
+
+  const toolsBtn = el("toolsBtn");
+  const toolsMenu = el("toolsMenu");
+  const showVersionBtn = el("showVersionBtn");
+  const clearCacheBtn = el("clearCacheBtn");
 
   // Проверка элементов
   if (!chatListEl || !messagesEl || !chatTitleEl) {
@@ -224,6 +230,45 @@ document.addEventListener("DOMContentLoaded", () => {
   exportBtn?.addEventListener("click", exportJSON);
   searchInputEl?.addEventListener("input", renderChatList);
   toggleAllBtn?.addEventListener("click", () => toggleAllMessages(toggleAllBtn, renderMessages));
+
+  /** ---------- Tools menu ---------- **/
+  toolsBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isVisible = toolsMenu.style.display !== 'none';
+    toolsMenu.style.display = isVisible ? 'none' : 'block';
+  });
+
+  // Закрытие меню при клике вне его
+  document.addEventListener("click", (e) => {
+    if (toolsMenu && toolsMenu.style.display !== 'none') {
+      if (!toolsMenu.contains(e.target) && e.target !== toolsBtn) {
+        toolsMenu.style.display = 'none';
+      }
+    }
+  });
+
+  showVersionBtn?.addEventListener("click", async () => {
+    toolsMenu.style.display = 'none';
+    try {
+      const version = await getApiVersion();
+      alert(`Версия API:\n\n${JSON.stringify(version, null, 2)}`);
+    } catch (error) {
+      alert(`Ошибка получения версии:\n${error.message}`);
+    }
+  });
+
+  clearCacheBtn?.addEventListener("click", async () => {
+    toolsMenu.style.display = 'none';
+    if (!confirm('Вы уверены, что хотите очистить кэш API?')) {
+      return;
+    }
+    try {
+      const result = await clearApiCache();
+      alert(`Кэш очищен:\n\n${JSON.stringify(result, null, 2)}`);
+    } catch (error) {
+      alert(`Ошибка очистки кэша:\n${error.message}`);
+    }
+  });
 
   /** ---------- Composer ---------- **/
   promptInput.addEventListener("input", () => autoGrow(promptInput));
