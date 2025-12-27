@@ -137,3 +137,21 @@ export async function clearApiCache() {
 
   return await res.json();
 }
+
+export async function clearSchemaCache(schema) {
+  const url = config.URL_rest + `v1/cache/clear/schema/${schema}`;
+
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      "Accept": "application/json"
+    }
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`SCHEMA_CACHE HTTP ${res.status}: ${text}`);
+  }
+
+  return await res.json();
+}

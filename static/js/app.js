@@ -10,7 +10,7 @@ import { newChat, clearMessages, exportJSON, toggleAllMessages, updateToggleAllB
 import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy } from './modules/ui.js';
 import { VoiceInput } from './modules/voice.js';
 import { DB_SCHEMAS } from './modules/config.js';
-import { getApiVersion, clearApiCache } from './modules/api.js';
+import { getApiVersion, clearApiCache, clearSchemaCache } from './modules/api.js';
 
 // ============================================================================
 // История ввода
@@ -87,6 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const toolsMenu = el("toolsMenu");
   const showVersionBtn = el("showVersionBtn");
   const clearCacheBtn = el("clearCacheBtn");
+  const clearSchemaCacheBtn = el("clearSchemaCacheBtn");
 
   // Проверка элементов
   if (!chatListEl || !messagesEl || !chatTitleEl) {
@@ -267,6 +268,20 @@ document.addEventListener("DOMContentLoaded", () => {
       alert(`Кэш очищен:\n\n${JSON.stringify(result, null, 2)}`);
     } catch (error) {
       alert(`Ошибка очистки кэша:\n${error.message}`);
+    }
+  });
+
+  clearSchemaCacheBtn?.addEventListener("click", async () => {
+    toolsMenu.style.display = 'none';
+    const schemaName = DB_SCHEMAS.find(s => s.value === dbSchema)?.label || dbSchema;
+    if (!confirm(`Вы уверены, что хотите очистить кэш для схемы "${schemaName}"?`)) {
+      return;
+    }
+    try {
+      const result = await clearSchemaCache(dbSchema);
+      alert(`Кэш схемы "${schemaName}" очищен:\n\n${JSON.stringify(result, null, 2)}`);
+    } catch (error) {
+      alert(`Ошибка очистки кэша схемы:\n${error.message}`);
     }
   });
 

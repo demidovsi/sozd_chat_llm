@@ -3,9 +3,9 @@
  */
 
 import { state, saveState, getActiveChat, dbSchema } from './state.js';
-import { copyToClipboard, makeLinksOpenInNewTab, isArrayOfObjects, getColumnsFromRows, downloadFromGCS, hasParams } from './utils.js';
+import { copyToClipboard, makeLinksOpenInNewTab, isArrayOfObjects, getColumnsFromRows, downloadFromGCS, hasParams, downloadTextFile } from './utils.js';
 import { escapeCell, toCsv, formatTimeForMeta, formatDurationMs, formatExecuteResult } from './formatters.js';
-import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy } from './ui.js';
+import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy, setUiBusy } from './ui.js';
 import { updateChatTitleWithStats } from './actions.js';
 import { fetchSqlText, executeSqlViaApi } from './api.js';
 import { getEncodedAdminToken } from './crypto.js';
@@ -528,8 +528,8 @@ function renderMessagesInternal() {
       sqlHead.innerHTML = `
         <span>SQL Query</span>
         <div class="sql-actions">
-          <button class="sql-btn">Copy</button>
-          <button class="sql-btn">${m.sqlOpen ? 'Hide' : 'Show'}</button>
+          <button class="sql-btn" title="Скопировать SQL запрос в буфер обмена">Copy</button>
+          <button class="sql-btn" title="${m.sqlOpen ? 'Скрыть SQL запрос' : 'Показать SQL запрос'}">${m.sqlOpen ? 'Hide' : 'Show'}</button>
         </div>
       `;
 
@@ -590,7 +590,7 @@ function renderMessagesInternal() {
       tblHead.className = 'tbl-head';
       tblHead.innerHTML = `
         <span>Таблица (${rows.length} строк, ${columns.length} колонок)</span>
-        <button class="sql-btn">Copy CSV</button>
+        <button class="sql-btn" title="Скачать таблицу в формате Excel (CSV)">Excel</button>
       `;
 
       const tblScroller = document.createElement('div');
@@ -748,8 +748,19 @@ function renderMessagesInternal() {
 
       const csvBtn = tblHead.querySelector('.sql-btn');
       csvBtn.onclick = () => {
-        const csv = toCsv(rows, columns);
-        copyToClipboard(csv);
+        setUiBusy(true);
+        // Используем setTimeout для асинхронности, чтобы индикатор успел отобразиться
+        setTimeout(() => {
+          try {
+            const csv = toCsv(rows, columns);
+            const chat = getActiveChat();
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const filename = `${chat.title.slice(0, 30)}_${timestamp}.csv`;
+            downloadTextFile(filename, csv, "text/csv;charset=utf-8");
+          } finally {
+            setUiBusy(false);
+          }
+        }, 50);
       };
 
       // ⭐ Кнопка построения графика
