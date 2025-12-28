@@ -367,6 +367,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (isGenerating && currentAbortController) {
       currentAbortController.abort();
+      // Сбрасываем флаги после abort
+      setGenerating(sendBtn, false);
+      setIsGenerating(false);
+      setOverlay(genOverlay, false);
+      setCurrentAbortController(null);
+      if (voiceBtn) voiceBtn.disabled = false;
       return;
     }
 

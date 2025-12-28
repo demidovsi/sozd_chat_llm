@@ -1,0 +1,69 @@
+# Python
+.venv
+venv
+env
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Claude Code
+.claude
+
+# Environment
+.env
+.env.example
+
+# Credentials (должны передаваться через переменные окружения)
+gcs_credentials.json
+
+# Deploy scripts
+*.bat
+*.sh
+deploy.*
+auto_deploy.bat
+
+# Temporary files
+uploads
+nul
+*.log
+
+# Schema DDL files
+*_schema_ddl.sql
+
+# Documentation
+DEPLOY.md
+CHANGELOG.md
+SECURITY.md
+
+# Text files (exclude specific files, but keep requirements.txt)
+*_prompt.txt
+*_system_prompt.txt
+sql_ddl.txt
+текс*.txt
+текст*.txt
+
+# Examples
+example_*.py
+get_schema_*.py
+create_system_prompt.py
+
+# Cyrillic named files
+текс*
+текст*
