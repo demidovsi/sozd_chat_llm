@@ -1,0 +1,22 @@
+ @echo off
+  REM Получение DDL схемы sozd из PostgreSQL
+
+  set DB_HOST=159.223.0.234
+  set DB_PORT=5432
+  set DB_NAME=postgres
+  set DB_USER=postgres
+  set SCHEMA_NAME=sozd
+  set OUTPUT_FILE=sozd_schema_ddl.sql
+
+  echo Извлечение DDL схемы %SCHEMA_NAME%...
+
+  pg_dump -h %DB_HOST% -p %DB_PORT% -U %DB_USER% -d %DB_NAME% ^
+    --schema=%SCHEMA_NAME% ^
+    --schema-only ^
+    --no-owner ^
+    --no-privileges ^
+    > %OUTPUT_FILE%
+
+  echo.
+  echo DDL схемы сохранён в файл: %OUTPUT_FILE%
+  echo.

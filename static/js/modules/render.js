@@ -7,7 +7,7 @@ import { copyToClipboard, makeLinksOpenInNewTab, isArrayOfObjects, getColumnsFro
 import { escapeCell, toCsv, formatTimeForMeta, formatDurationMs, formatExecuteResult } from './formatters.js';
 import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy, setUiBusy, setOverlayText } from './ui.js';
 import { updateChatTitleWithStats } from './actions.js';
-import { fetchSqlText, executeSqlViaApi, fetchQueryAnswer } from './api.js';
+import { fetchSqlText, executeSqlViaApi, fetchQueryAnswer, clearQueryCache } from './api.js';
 import { getEncodedAdminToken } from './crypto.js';
 import { MAX_TABLE_COLS, config } from './config.js';
 import { ChartAnalyzer, ChartRenderer } from './chart.js';
@@ -1103,6 +1103,14 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
       const executeEnd = new Date();
       const executeDurationMs = Math.round(performance.now() - executeT0);
 
+      // Автоматически очищаем кэш запроса при ошибке выполнения SQL
+      try {
+        await clearQueryCache(userText, dbSchema);
+        console.log('Query cache cleared after SQL execution error');
+      } catch (cacheError) {
+        console.warn('Failed to clear query cache:', cacheError);
+      }
+
       assistantMsg.executeResponseAt = executeEnd.toISOString();
       assistantMsg.executeDurationMs = executeDurationMs;
       assistantMsg.error = true;
@@ -1189,6 +1197,15 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
     }
   } catch (error) {
     if (error?.name === "AbortError") return;
+
+    // Автоматически очищаем кэш запроса при ошибке
+    try {
+      await clearQueryCache(userText, dbSchema);
+      console.log('Query cache cleared after error');
+    } catch (cacheError) {
+      console.warn('Failed to clear query cache:', cacheError);
+    }
+
     assistantMsg.error = true;
     assistantMsg.collapsed = false; // Сразу раскрываем сообщение с ошибкой
 

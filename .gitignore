@@ -9,3 +9,4 @@ gcs_credentials.json
 __pycache__/
 .env
 .env.local
+.env.example

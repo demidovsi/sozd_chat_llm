@@ -10,6 +10,14 @@ import os
 import sys
 from dotenv import load_dotenv
 
+
+def translate_from_base(st):
+    if st and type(st) == str:
+        st = st.replace('~A~', '(').replace('~B~', ')').replace('~a1~', '@').replace('~LF~', '\n')
+        st = st.replace('~a2~', ',').replace('~a3~', '=').replace('~a4~', '"').replace('~a5~', "'")
+        st = st.replace('~a6~', ':').replace('~b1~', '/').replace('~TAB~', '\t').replace('~R~', '\r')
+    return st
+
 # Загружаем переменные из .env файла
 load_dotenv()
 
@@ -19,7 +27,7 @@ DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME", "postgres")
 DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
-SCHEMA_NAME = "lib"
+SCHEMA_NAME = "ohi"
 OUTPUT_FILE = SCHEMA_NAME + "_schema_ddl.sql"
 
 # Проверяем наличие пароля
@@ -103,7 +111,9 @@ try:
 
             table_comment = cur.fetchone()
             if table_comment and table_comment[0]:
-                ddl_statements.append(f"-- Комментарий: {table_comment[0]}")
+                comment = table_comment[0]
+                comment = translate_from_base(comment)
+                ddl_statements.append(f"-- Комментарий: {comment}")
 
             ddl_statements.append(create_table[0])
 
@@ -131,6 +141,7 @@ try:
             column_comments = cur.fetchall()
             if column_comments:
                 for col_name, col_comment in column_comments:
+                    col_comment = translate_from_base(col_comment)
                     comment_sql = f"COMMENT ON COLUMN {SCHEMA_NAME}.{table_name}.{col_name} IS '{col_comment}';"
                     ddl_statements.append(comment_sql)
 

@@ -41,6 +41,8 @@ auto_deploy.bat
 
 # Temporary files
 uploads
+db_schema_dll
+test
 nul
 *.log
 

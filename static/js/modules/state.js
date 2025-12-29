@@ -2,7 +2,7 @@
  * Управление состоянием приложения
  */
 
-import { LS_KEY, DB_SCHEMA_KEY, DB_SCHEMAS } from './config.js';
+import { LS_KEY, DB_SCHEMA_KEY, DB_SCHEMAS, QUERY_MODE_KEY, QUERY_MODES } from './config.js';
 
 export let state = null;
 export let currentAbortController = null;
@@ -10,6 +10,7 @@ export let isGenerating = false;
 export let lastUserMessageCache = "";
 export let restSessionId = null;
 export let dbSchema = null;
+export let queryMode = "sql"; // Текущий режим работы (по умолчанию SQL)
 
 export function setState(newState) {
   state = newState;
@@ -45,12 +46,36 @@ export function setDbSchema(value) {
   }
 }
 
+export function setQueryMode(value) {
+  queryMode = value;
+  // Сохраняем query_mode в localStorage
+  if (value) {
+    localStorage.setItem(QUERY_MODE_KEY, value);
+    console.log(`Query Mode saved to localStorage: ${value}`);
+  }
+}
+
+export function getCurrentMode() {
+  return QUERY_MODES[queryMode] || QUERY_MODES.sql;
+}
+
 export function loadState() {
   // Загружаем session_id из localStorage
   const savedSessionId = localStorage.getItem('restSessionId');
   if (savedSessionId) {
     restSessionId = savedSessionId;
     console.log(`Session ID loaded from localStorage: ${savedSessionId}`);
+  }
+
+  // Загружаем query_mode из localStorage
+  const savedQueryMode = localStorage.getItem(QUERY_MODE_KEY);
+  if (savedQueryMode && QUERY_MODES[savedQueryMode]) {
+    queryMode = savedQueryMode;
+    console.log(`Query Mode loaded from localStorage: ${savedQueryMode}`);
+  } else {
+    // По умолчанию SQL режим
+    queryMode = "sql";
+    localStorage.setItem(QUERY_MODE_KEY, queryMode);
   }
 
   // Загружаем db_schema из localStorage
@@ -69,11 +94,14 @@ export function loadState() {
     try {
       const data = JSON.parse(raw);
 
-      // Миграция: добавляем schema к старым чатам
+      // Миграция: добавляем schema и mode к старым чатам
       if (data.chats && Array.isArray(data.chats)) {
         data.chats.forEach(chat => {
           if (!chat.schema) {
             chat.schema = DB_SCHEMAS[0].value; // Присваиваем первую схему старым чатам
+          }
+          if (!chat.mode) {
+            chat.mode = "sql"; // Присваиваем SQL режим старым чатам
           }
         });
       }
@@ -93,17 +121,21 @@ export function saveState(next = state) {
   localStorage.setItem(LS_KEY, JSON.stringify(next));
 }
 
-export function createChat(title, schema = null) {
+export function createChat(title, schema = null, mode = null) {
+  const currentMode = mode || queryMode;
+  const modeConfig = QUERY_MODES[currentMode];
+
   return {
     id: crypto.randomUUID(),
     title,
     schema: schema || dbSchema, // Привязываем чат к схеме БД
+    mode: currentMode, // Привязываем чат к режиму работы
     createdAt: Date.now(),
     messages: [
       {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: "Привет! Это демо-интерфейс. Напиши сообщение снизу — я отвечу (через fetchSqlText + v2/execute)."
+        content: `Привет! Режим: ${modeConfig.label}. ${modeConfig.description}`
       }
     ]
   };
