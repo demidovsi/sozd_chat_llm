@@ -31,6 +31,21 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 echo ""
+echo "Проверка URL_rest в config.js..."
+EXPECTED_URL_REST="https://159.223.0.234:5051/"
+CURRENT_URL_REST=$(grep -oP 'URL_rest:\s*"\K[^"]+' static/js/modules/config.js || echo "")
+
+if [ "$CURRENT_URL_REST" != "$EXPECTED_URL_REST" ]; then
+  echo "❌ ОШИБКА: URL_rest имеет неверное значение!"
+  echo "   Текущее значение: $CURRENT_URL_REST"
+  echo "   Ожидаемое значение: $EXPECTED_URL_REST"
+  echo ""
+  echo "Исправьте URL_rest в static/js/modules/config.js и повторите попытку."
+  exit 1
+fi
+echo "✅ URL_rest корректен: $CURRENT_URL_REST"
+
+echo ""
 echo "1. Сборка Docker образа..."
 docker build -t ${IMAGE_TAG} .
 
