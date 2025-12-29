@@ -15,6 +15,16 @@ export function setOverlay(genOverlay, on) {
   if (genOverlay) genOverlay.classList.toggle("active", on);
 }
 
+export function setOverlayText(text) {
+  const genOverlay = document.getElementById("genOverlay");
+  if (genOverlay) {
+    const genText = genOverlay.querySelector(".gen-text");
+    if (genText) {
+      genText.textContent = text;
+    }
+  }
+}
+
 export function buildSqlWithParams(m) {
   let text = m.sql || "";
   if (hasParams(m.params)) {

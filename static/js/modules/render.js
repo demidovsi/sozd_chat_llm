@@ -2,12 +2,12 @@
  * Модуль рендеринга интерфейса
  */
 
-import { state, saveState, getActiveChat, dbSchema } from './state.js';
+import { state, saveState, getActiveChat, dbSchema, getCurrentMode } from './state.js';
 import { copyToClipboard, makeLinksOpenInNewTab, isArrayOfObjects, getColumnsFromRows, downloadFromGCS, hasParams, downloadTextFile } from './utils.js';
 import { escapeCell, toCsv, formatTimeForMeta, formatDurationMs, formatExecuteResult } from './formatters.js';
-import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy, setUiBusy } from './ui.js';
+import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy, setUiBusy, setOverlayText } from './ui.js';
 import { updateChatTitleWithStats } from './actions.js';
-import { fetchSqlText, executeSqlViaApi } from './api.js';
+import { fetchSqlText, executeSqlViaApi, fetchQueryAnswer } from './api.js';
 import { getEncodedAdminToken } from './crypto.js';
 import { MAX_TABLE_COLS, config } from './config.js';
 import { ChartAnalyzer, ChartRenderer } from './chart.js';
@@ -221,12 +221,19 @@ function updateToggleAllButton() {
  */
 export function renderChatList() {
   const q = (searchInputEl?.value || "").trim().toLowerCase();
+  const mode = getCurrentMode();
 
   chatListEl.innerHTML = "";
 
   const chats = state.chats
     .slice()
-    .filter(c => c.schema === dbSchema) // Показываем только чаты текущей схемы
+    .filter(c => {
+      // Фильтруем по режиму
+      if (c.mode !== mode.id) return false;
+      // Если режим использует схемы - фильтруем по схеме
+      if (mode.useSchemas && c.schema !== dbSchema) return false;
+      return true;
+    })
     .sort((a, b) => b.createdAt - a.createdAt)
     .filter(c => {
       if (!q) return true;
@@ -1005,8 +1012,10 @@ function scrollToAssistantMessage(messageId) {
  * @param {AbortSignal} signal - Сигнал для отмены операции
  */
 export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) {
+  const mode = getCurrentMode();
+
   try {
-    // --- тайминги REST-запроса к URL_rest (fetchSqlText) ---
+    // --- тайминги REST-запроса ---
     const restStart = new Date();
     const t0 = performance.now();
 
@@ -1014,7 +1023,11 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
     assistantMsg.restRequestAt = restStart.toISOString();
     if (userMsg) userMsg.restRequestAt = assistantMsg.restRequestAt;
 
-    const response = await fetchSqlText(userText, { signal });
+    // Для SQL режима используем существующую логику
+    // Для остальных режимов - универсальный запрос
+    const response = (mode.id === 'sql')
+      ? await fetchSqlText(userText, { signal })
+      : await fetchQueryAnswer(userText, { signal });
 
     const restEnd = new Date();
     const durationMs = Math.round(performance.now() - t0);
@@ -1029,9 +1042,9 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
       userMsg.restDurationMs = durationMs;
     }
 
-    console.log('Response from URL_rest:', response);
+    console.log('Response from API:', response);
 
-    // Проверяем наличие запроса на уточнение в ответе от URL_rest
+    // Проверяем наличие запроса на уточнение в ответе
     if (response && typeof response.error === 'string' && response.error.trim().length > 0) {
       console.log('Clarification request detected:', response.error);
       // Это запрос на уточнение (код 200), а не ошибка
@@ -1043,29 +1056,34 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
       return;
     }
 
-    let sqlText = "";
-    let params = null;
+    // ========== SQL РЕЖИМ ==========
+    if (mode.id === 'sql') {
+      let sqlText = "";
+      let params = null;
 
-    if (response && typeof response === "object") {
-      sqlText = typeof response.sql === "string" ? response.sql : "";
-      params = response.params ?? null;
-    }
+      if (response && typeof response === "object") {
+        sqlText = typeof response.sql === "string" ? response.sql : "";
+        params = response.params ?? null;
+      }
 
-    if (!sqlText) throw new Error("SQL not generated");
+      if (!sqlText) throw new Error("SQL not generated");
 
-    assistantMsg.sql = sqlText;
-    assistantMsg.params = params;
-    // Скроллим на начало ответа ассистента
-    scrollToAssistantMessage(assistantMsg.id);
-    renderMessagesInternal();
+      assistantMsg.sql = sqlText;
+      assistantMsg.params = params;
+      // Скроллим на начало ответа ассистента
+      scrollToAssistantMessage(assistantMsg.id);
+      renderMessagesInternal();
 
-    const encodedToken = await getEncodedAdminToken({ signal });
+      const encodedToken = await getEncodedAdminToken({ signal });
 
     // --- тайминги SQL выполнения (только для ассистента) ---
     const executeStart = new Date();
     const executeT0 = performance.now();
 
     assistantMsg.executeRequestAt = executeStart.toISOString();
+
+    // Изменяем текст overlay на "Receiving data…"
+    setOverlayText("Receiving data…");
 
     let executeResult;
     try {
@@ -1145,12 +1163,30 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
       }
     }
 
-    // Во всех остальных случаях показываем как текстовый список
-    const answerText = formatExecuteResult(executeResult);
-    assistantMsg.content = answerText;
-    // Скроллим на начало ответа ассистента
-    scrollToAssistantMessage(assistantMsg.id);
-    renderMessagesInternal();
+      // Во всех остальных случаях показываем как текстовый список
+      const answerText = formatExecuteResult(executeResult);
+      assistantMsg.content = answerText;
+      // Скроллим на начало ответа ассистента
+      scrollToAssistantMessage(assistantMsg.id);
+      renderMessagesInternal();
+    }
+    // ========== ДРУГИЕ РЕЖИМЫ (Custom API и т.д.) ==========
+    else {
+      // Для других режимов - просто отображаем ответ
+      if (response && typeof response === "object") {
+        // Пробуем разные поля в ответе
+        const answerText = response.answer || response.text || response.response || JSON.stringify(response, null, 2);
+        assistantMsg.content = answerText;
+      } else if (typeof response === "string") {
+        assistantMsg.content = response;
+      } else {
+        assistantMsg.content = "✅ Запрос выполнен успешно";
+      }
+
+      // Скроллим на начало ответа ассистента
+      scrollToAssistantMessage(assistantMsg.id);
+      renderMessagesInternal();
+    }
   } catch (error) {
     if (error?.name === "AbortError") return;
     assistantMsg.error = true;

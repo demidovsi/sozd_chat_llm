@@ -2,8 +2,8 @@
  * API вызовы к бэкенду
  */
 
-import { config } from './config.js';
-import { restSessionId, setRestSessionId, dbSchema } from './state.js';
+import { config, QUERY_MODES } from './config.js';
+import { restSessionId, setRestSessionId, dbSchema, queryMode, getCurrentMode } from './state.js';
 
 export async function fetchSqlText(userText, { signal } = {}) {
   const url = config.URL_rest + "sql/text";
@@ -154,4 +154,101 @@ export async function clearSchemaCache(schema) {
   }
 
   return await res.json();
+}
+
+export async function clearQueryCache(userConditions, schema) {
+  const url = config.URL_rest + "v1/cache/clear/query";
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      user_conditions: userConditions,
+      db_schema: schema
+    })
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`QUERY_CACHE HTTP ${res.status}: ${text}`);
+  }
+
+  return await res.json();
+}
+
+/**
+ * Универсальная функция для запросов к разным API в зависимости от режима
+ * @param {string} userText - Текст запроса пользователя
+ * @param {Object} options - Опции запроса
+ * @param {AbortSignal} options.signal - Сигнал для отмены запроса
+ * @returns {Promise<Object>} - Ответ от API
+ */
+export async function fetchQueryAnswer(userText, { signal } = {}) {
+  const mode = getCurrentMode();
+  
+  // Для SQL режима используем существующий fetchSqlText
+  if (mode.id === 'sql') {
+    return await fetchSqlText(userText, { signal });
+  }
+  
+  // Для других режимов - универсальный запрос
+  const url = mode.url + mode.endpoint;
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 90000);
+  
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  
+  const requestUrl = new URL(url);
+  
+  const requestBody = {
+    question: userText,
+    user_text: userText
+  };
+  
+  // Добавляем session_id если есть
+  if (restSessionId) {
+    requestBody.session_id = restSessionId;
+  }
+  
+  // Добавляем db_schema если режим использует схемы
+  if (mode.useSchemas && dbSchema) {
+    requestBody.db_schema = dbSchema;
+  }
+  
+  try {
+    const res = await fetch(requestUrl.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HTTP ${res.status}: ${text}`);
+    }
+    
+    const data = await res.json();
+    
+    // Сохраняем session_id если пришёл новый
+    if (data.session_id && data.session_id !== restSessionId) {
+      setRestSessionId(data.session_id);
+    }
+    
+    return data;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw err;
+    }
+    throw new Error(`Query failed: ${err.message}`);
+  }
 }

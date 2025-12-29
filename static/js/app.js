@@ -3,14 +3,14 @@
  */
 
 import { el, normalizeUserMessage } from './modules/utils.js';
-import { state, setState, loadState, saveState, getActiveChat, setCurrentAbortController, setIsGenerating, setLastUserMessageCache, currentAbortController, isGenerating, lastUserMessageCache, dbSchema, setDbSchema, createChat } from './modules/state.js';
+import { state, setState, loadState, saveState, getActiveChat, setCurrentAbortController, setIsGenerating, setLastUserMessageCache, currentAbortController, isGenerating, lastUserMessageCache, dbSchema, setDbSchema, createChat, queryMode, setQueryMode, getCurrentMode } from './modules/state.js';
 import { initTheme } from './modules/theme.js';
 import { renderAll, renderChatList, renderMessages, fakeStreamAnswer, setElements } from './modules/render.js';
 import { newChat, clearMessages, exportJSON, toggleAllMessages, updateToggleAllButton, getLastUserMessage } from './modules/actions.js';
-import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy } from './modules/ui.js';
+import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy, setOverlayText } from './modules/ui.js';
 import { VoiceInput } from './modules/voice.js';
-import { DB_SCHEMAS } from './modules/config.js';
-import { getApiVersion, clearApiCache, clearSchemaCache } from './modules/api.js';
+import { config, DB_SCHEMAS, QUERY_MODES } from './modules/config.js';
+import { getApiVersion, clearApiCache, clearSchemaCache, clearQueryCache } from './modules/api.js';
 
 // ============================================================================
 // История ввода
@@ -73,6 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const promptInput = el("promptInput");
   const sendBtn = el("sendBtn");
   const voiceBtn = el("voiceBtn");
+  const clearQueryCacheBtn = el("clearQueryCacheBtn");
 
   const themeSelect = el("themeSelect");
   const themeToggleBtn = el("themeToggle");
@@ -81,6 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const scrollToEndBtn = el("scrollToEndBtn");
   const scrollToTopBtn = el("scrollToTopBtn");
   const versionInfoEl = el("versionInfo");
+  const queryModeTabsEl = el("queryModeTabs");
   const dbSchemaSelect = el("dbSchemaSelect");
 
   const toolsBtn = el("toolsBtn");
@@ -109,6 +111,83 @@ document.addEventListener("DOMContentLoaded", () => {
   // Инициализация темы
   initTheme(themeSelect, themeToggleBtn);
 
+  /** ---------- Query Mode Tabs ---------- **/
+  if (queryModeTabsEl) {
+    // Создаём вкладки для каждого режима
+    Object.values(QUERY_MODES).forEach(mode => {
+      const tab = document.createElement('button');
+      tab.className = 'mode-tab';
+      tab.dataset.mode = mode.id;
+      tab.title = mode.description;
+
+      const icon = document.createElement('span');
+      icon.className = 'mode-tab-icon';
+      icon.textContent = mode.icon;
+
+      const label = document.createElement('span');
+      label.className = 'mode-tab-label';
+      label.textContent = mode.label;
+
+      tab.appendChild(icon);
+      tab.appendChild(label);
+      queryModeTabsEl.appendChild(tab);
+
+      // Обработчик клика по вкладке
+      tab.addEventListener('click', () => {
+        const newMode = mode.id;
+        if (newMode === queryMode) return; // Уже активен
+
+        setQueryMode(newMode);
+        console.log(`Query Mode changed to: ${newMode}`);
+
+        // Обновляем активную вкладку
+        queryModeTabsEl.querySelectorAll('.mode-tab').forEach(t => {
+          t.classList.toggle('active', t.dataset.mode === newMode);
+        });
+
+        // Показываем/скрываем выбор схемы в зависимости от режима
+        const modeConfig = QUERY_MODES[newMode];
+        if (dbSchemaSelect) {
+          dbSchemaSelect.style.display = modeConfig.useSchemas ? 'block' : 'none';
+        }
+
+        // Ищем чаты для нового режима (и текущей схемы если режим использует схемы)
+        let modeChats;
+        if (modeConfig.useSchemas) {
+          modeChats = state.chats.filter(c => c.mode === newMode && c.schema === dbSchema);
+        } else {
+          modeChats = state.chats.filter(c => c.mode === newMode);
+        }
+
+        if (modeChats.length > 0) {
+          // Переключаемся на первый чат нового режима
+          state.activeChatId = modeChats[0].id;
+          saveState();
+        } else {
+          // Создаём новый чат для нового режима
+          const newChat = createChat("New chat", dbSchema, newMode);
+          state.chats.push(newChat);
+          state.activeChatId = newChat.id;
+          saveState();
+        }
+
+        // Перерендериваем UI
+        renderAll();
+      });
+    });
+
+    // Устанавливаем активную вкладку
+    queryModeTabsEl.querySelectorAll('.mode-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.mode === queryMode);
+    });
+
+    // Показываем/скрываем выбор схемы в зависимости от текущего режима
+    const currentModeConfig = getCurrentMode();
+    if (dbSchemaSelect) {
+      dbSchemaSelect.style.display = currentModeConfig.useSchemas ? 'block' : 'none';
+    }
+  }
+
   /** ---------- DB Schema Select ---------- **/
   if (dbSchemaSelect) {
     // Заполняем select опциями из конфига
@@ -130,16 +209,16 @@ document.addEventListener("DOMContentLoaded", () => {
       setDbSchema(newSchema);
       console.log(`DB Schema changed to: ${newSchema}`);
 
-      // Ищем чаты для новой схемы
-      const schemaChats = state.chats.filter(c => c.schema === newSchema);
+      // Ищем чаты для новой схемы и текущего режима
+      const schemaChats = state.chats.filter(c => c.schema === newSchema && c.mode === queryMode);
 
       if (schemaChats.length > 0) {
         // Переключаемся на первый чат новой схемы
         state.activeChatId = schemaChats[0].id;
         saveState();
       } else {
-        // Создаём новый чат для новой схемы
-        const newChat = createChat("New chat", newSchema);
+        // Создаём новый чат для новой схемы и текущего режима
+        const newChat = createChat("New chat", newSchema, queryMode);
         state.chats.push(newChat);
         state.activeChatId = newChat.id;
         saveState();
@@ -252,7 +331,12 @@ document.addEventListener("DOMContentLoaded", () => {
     toolsMenu.style.display = 'none';
     try {
       const version = await getApiVersion();
-      alert(`Версия API:\n\n${JSON.stringify(version, null, 2)}`);
+      const versionWithUrl = {
+        ...version,
+        URL_api: config.URL,
+        URL_rest: config.URL_rest
+      };
+      alert(`Версия API:\n\n${JSON.stringify(versionWithUrl, null, 2)}`);
     } catch (error) {
       alert(`Ошибка получения версии:\n${error.message}`);
     }
@@ -286,7 +370,45 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /** ---------- Composer ---------- **/
-  promptInput.addEventListener("input", () => autoGrow(promptInput));
+
+  // Функция для обновления видимости кнопки очистки кэша запроса
+  function updateClearQueryCacheButton() {
+    if (clearQueryCacheBtn) {
+      const hasText = promptInput.value.trim().length > 0;
+      clearQueryCacheBtn.style.display = hasText ? 'flex' : 'none';
+    }
+  }
+
+  promptInput.addEventListener("input", () => {
+    autoGrow(promptInput);
+    updateClearQueryCacheButton();
+  });
+
+  // Обработчик вставки текста
+  promptInput.addEventListener("paste", () => {
+    setTimeout(() => {
+      autoGrow(promptInput);
+      updateClearQueryCacheButton();
+    }, 0);
+  });
+
+  // Обработчик для кнопки очистки кэша запроса
+  clearQueryCacheBtn?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const userText = promptInput.value.trim();
+    if (!userText) return;
+
+    if (!confirm('Очистить кэш для этого запроса?')) {
+      return;
+    }
+
+    try {
+      const result = await clearQueryCache(userText, dbSchema);
+      alert(`Кэш запроса очищен:\n\n${JSON.stringify(result, null, 2)}`);
+    } catch (error) {
+      alert(`Ошибка очистки кэша запроса:\n${error.message}`);
+    }
+  });
 
   sendBtn.addEventListener("click", (e) => {
     e.preventDefault();
@@ -320,6 +442,7 @@ document.addEventListener("DOMContentLoaded", () => {
           historyIndex++;
           promptInput.value = inputHistory[inputHistory.length - 1 - historyIndex];
           autoGrow(promptInput);
+          updateClearQueryCacheButton();
           // Курсор остаётся на месте (в начале)
         }
       }
@@ -344,6 +467,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           autoGrow(promptInput);
+          updateClearQueryCacheButton();
           // Курсор остаётся на месте (в конце)
         }
       }
@@ -413,6 +537,7 @@ document.addEventListener("DOMContentLoaded", () => {
     promptInput.style.height = "auto";
     promptInput.style.overflowY = "hidden";
     autoGrow(promptInput);
+    updateClearQueryCacheButton();
 
     saveState();
     renderAll();
@@ -422,6 +547,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setGenerating(sendBtn, true);
     setIsGenerating(true);
     setOverlay(genOverlay, true);
+    setOverlayText("Generating response…");
     if (voiceBtn) voiceBtn.disabled = true;
 
     try {
