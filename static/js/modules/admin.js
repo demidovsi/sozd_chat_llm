@@ -32,11 +32,21 @@ export async function createUser(userData) {
       body: JSON.stringify(userData)
     });
 
+    if (!response.ok) {
+      // Try to parse error message from server
+      try {
+        const data = await response.json();
+        return data;
+      } catch {
+        return { success: false, message: `Server error: ${response.status}` };
+      }
+    }
+
     const data = await response.json();
     return data;
   } catch (error) {
     console.error('Create user error:', error);
-    return { success: false, message: 'Connection error' };
+    return { success: false, message: 'Connection error: ' + error.message };
   }
 }
 
@@ -50,11 +60,21 @@ export async function updateUser(userId, userData) {
       body: JSON.stringify(userData)
     });
 
+    if (!response.ok) {
+      // Try to parse error message from server
+      try {
+        const data = await response.json();
+        return data;
+      } catch {
+        return { success: false, message: `Server error: ${response.status}` };
+      }
+    }
+
     const data = await response.json();
     return data;
   } catch (error) {
     console.error('Update user error:', error);
-    return { success: false, message: 'Connection error' };
+    return { success: false, message: 'Connection error: ' + error.message };
   }
 }
 
@@ -64,11 +84,21 @@ export async function deleteUser(userId) {
       method: 'DELETE'
     });
 
+    if (!response.ok) {
+      // Try to parse error message from server
+      try {
+        const data = await response.json();
+        return data;
+      } catch {
+        return { success: false, message: `Server error: ${response.status}` };
+      }
+    }
+
     const data = await response.json();
     return data;
   } catch (error) {
     console.error('Delete user error:', error);
-    return { success: false, message: 'Connection error' };
+    return { success: false, message: 'Connection error: ' + error.message };
   }
 }
 
@@ -82,11 +112,21 @@ export async function resetUserPassword(userId, newPassword) {
       body: JSON.stringify({ new_password: newPassword })
     });
 
+    if (!response.ok) {
+      // Try to parse error message from server
+      try {
+        const data = await response.json();
+        return data;
+      } catch {
+        return { success: false, message: `Server error: ${response.status}` };
+      }
+    }
+
     const data = await response.json();
     return data;
   } catch (error) {
     console.error('Reset password error:', error);
-    return { success: false, message: 'Connection error' };
+    return { success: false, message: 'Connection error: ' + error.message };
   }
 }
 

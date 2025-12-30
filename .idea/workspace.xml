@@ -5,21 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d28c8828-fae3-4454-82ec-43696340f014" name="Changes" comment="- исправление url с локального на серверное">
-      <change beforePath="$PROJECT_DIR$/.claude/settings.local.json" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/settings.local.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sozd_chat.py" beforeDir="false" afterPath="$PROJECT_DIR$/sozd_chat.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/css/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/static/css/styles.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/js/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/js/app.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/js/modules/chart.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/js/modules/chart.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/js/modules/config.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/js/modules/config.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/js/modules/formatters.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/js/modules/formatters.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/js/modules/render.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/js/modules/render.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/js/modules/utils.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/js/modules/utils.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/version.json" beforeDir="false" afterPath="$PROJECT_DIR$/version.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

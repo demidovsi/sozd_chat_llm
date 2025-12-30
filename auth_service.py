@@ -32,12 +32,16 @@ def to_iso8601(timestamp_str: str) -> str:
 
 # === User Management ===
 
-def create_user(username: str, email: str, password: str, is_admin: bool = False) -> Optional[User]:
+def create_user(username: str, email: str, password: str, is_admin: bool = False, is_active: bool = True, schemas: List[str] = None) -> Dict:
     """Create a new user"""
+    # Validate required fields
+    if not username or not email or not password:
+        return {'success': False, 'message': 'Username, email and password are required'}
+
     # Check if user already exists
     existing = db.fetchone('SELECT id FROM users WHERE username = ? OR email = ?', (username, email))
     if existing:
-        return None
+        return {'success': False, 'message': 'User with this username or email already exists'}
 
     # Hash password
     password_hash = hash_password(password)
@@ -45,16 +49,29 @@ def create_user(username: str, email: str, password: str, is_admin: bool = False
     # Insert user
     conn = db.get_connection()
     cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO users (username, email, password_hash, is_admin, is_active)
-        VALUES (?, ?, ?, ?, 1)
-    ''', (username, email, password_hash, 1 if is_admin else 0))
+    try:
+        cursor.execute('''
+            INSERT INTO users (username, email, password_hash, is_admin, is_active)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (username, email, password_hash, 1 if is_admin else 0, 1 if is_active else 0))
 
-    user_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
+        user_id = cursor.lastrowid
 
-    return get_user_by_id(user_id)
+        # Grant schema access
+        if schemas:
+            for schema in schemas:
+                cursor.execute('''
+                    INSERT INTO user_schema_access (user_id, schema_name)
+                    VALUES (?, ?)
+                ''', (user_id, schema))
+
+        conn.commit()
+        return {'success': True, 'message': 'User created successfully', 'user_id': user_id}
+    except Exception as e:
+        conn.rollback()
+        return {'success': False, 'message': f'Database error: {str(e)}'}
+    finally:
+        conn.close()
 
 
 def authenticate_user(username: str, password: str) -> Optional[User]:
@@ -105,45 +122,103 @@ def get_all_users() -> List[User]:
     return [User(u) for u in user_dicts]
 
 
-def update_user(user_id: int, email: str = None, is_active: bool = None, is_admin: bool = None) -> bool:
+def update_user(user_id: int, username: str = None, email: str = None, is_active: bool = None, is_admin: bool = None, schemas: List[str] = None) -> Dict:
     """Update user fields"""
     conn = db.get_connection()
     cursor = conn.cursor()
 
-    updates = []
-    params = []
+    try:
+        # Check if username/email already exists for another user
+        if username:
+            existing = db.fetchone('SELECT id FROM users WHERE username = ? AND id != ?', (username, user_id))
+            if existing:
+                return {'success': False, 'message': 'Username already exists'}
 
-    if email is not None:
-        updates.append('email = ?')
-        params.append(email)
+        if email:
+            existing = db.fetchone('SELECT id FROM users WHERE email = ? AND id != ?', (email, user_id))
+            if existing:
+                return {'success': False, 'message': 'Email already exists'}
 
-    if is_active is not None:
-        updates.append('is_active = ?')
-        params.append(1 if is_active else 0)
+        updates = []
+        params = []
 
-    if is_admin is not None:
-        updates.append('is_admin = ?')
-        params.append(1 if is_admin else 0)
+        if username is not None:
+            updates.append('username = ?')
+            params.append(username)
 
-    if updates:
-        updates.append('updated_at = CURRENT_TIMESTAMP')
-        params.append(user_id)
-        query = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
-        cursor.execute(query, params)
+        if email is not None:
+            updates.append('email = ?')
+            params.append(email)
+
+        if is_active is not None:
+            updates.append('is_active = ?')
+            params.append(1 if is_active else 0)
+
+        if is_admin is not None:
+            updates.append('is_admin = ?')
+            params.append(1 if is_admin else 0)
+
+        if updates:
+            updates.append('updated_at = CURRENT_TIMESTAMP')
+            params.append(user_id)
+            query = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
+            cursor.execute(query, params)
+
+        # Update schemas if provided
+        if schemas is not None:
+            # Delete existing access
+            cursor.execute('DELETE FROM user_schema_access WHERE user_id = ?', (user_id,))
+
+            # Insert new access
+            for schema in schemas:
+                cursor.execute('''
+                    INSERT INTO user_schema_access (user_id, schema_name)
+                    VALUES (?, ?)
+                ''', (user_id, schema))
+
         conn.commit()
+        return {'success': True, 'message': 'User updated successfully'}
+    except Exception as e:
+        conn.rollback()
+        return {'success': False, 'message': f'Database error: {str(e)}'}
+    finally:
+        conn.close()
 
-    conn.close()
-    return True
 
-
-def delete_user(user_id: int) -> bool:
+def delete_user(user_id: int) -> Dict:
     """Delete user (cascade deletes schema access and chat history)"""
-    conn = db.get_connection()
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
-    conn.commit()
-    conn.close()
-    return True
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        return {'success': True, 'message': 'User deleted successfully'}
+    except Exception as e:
+        return {'success': False, 'message': f'Database error: {str(e)}'}
+
+
+def reset_user_password(user_id: int, new_password: str) -> Dict:
+    """Reset user password (for admin)"""
+    try:
+        if not new_password or len(new_password) < 6:
+            return {'success': False, 'message': 'Password must be at least 6 characters'}
+
+        password_hash = hash_password(new_password)
+
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE users
+            SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (password_hash, user_id))
+        conn.commit()
+        conn.close()
+
+        return {'success': True, 'message': 'Password reset successfully'}
+    except Exception as e:
+        return {'success': False, 'message': f'Database error: {str(e)}'}
 
 
 def set_user_active(user_id: int, is_active: bool) -> bool:
@@ -394,6 +469,14 @@ def get_all_activity(limit: int = 100) -> List[Dict]:
             row['created_at'] = to_iso8601(row['created_at'])
 
     return rows
+
+
+def get_activity_logs(user_id: Optional[int] = None, limit: int = 100) -> List[Dict]:
+    """Get activity logs, optionally filtered by user_id"""
+    if user_id:
+        return get_user_activity(user_id, limit)
+    else:
+        return get_all_activity(limit)
 
 
 # === Chat History Management ===
