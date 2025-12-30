@@ -9,7 +9,7 @@ import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy, setUiBu
 import { updateChatTitleWithStats } from './actions.js';
 import { fetchSqlText, executeSqlViaApi, fetchQueryAnswer, clearQueryCache } from './api.js';
 import { getEncodedAdminToken } from './crypto.js';
-import { MAX_TABLE_COLS, config } from './config.js';
+import { MAX_TABLE_COLS, MAX_TABLE_CELL_LENGTH, config } from './config.js';
 import { ChartAnalyzer, ChartRenderer } from './chart.js';
 
 // ============================================================================
@@ -422,6 +422,7 @@ function renderMessagesInternal() {
       copyBtn.className = 'copy-btn icon-btn';
       copyBtn.textContent = 'Copy';
       copyBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
+      copyBtn.title = m.role === 'user' ? 'Скопировать вопрос в буфер обмена' : 'Скопировать ответ в буфер обмена';
       copyBtn.onclick = () => {
         if (m.role === 'user') {
           copyToClipboard(m.content);
@@ -443,7 +444,7 @@ function renderMessagesInternal() {
 
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'delete-msg-btn icon-btn';
-        deleteBtn.textContent = '❌';
+        deleteBtn.textContent = '🗑️';
         deleteBtn.title = 'Удалить';
         deleteBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
         deleteBtn.onclick = () => deleteMessage(currentChat.id, m.id);
@@ -455,7 +456,7 @@ function renderMessagesInternal() {
       else if (m.role === 'user') {
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'delete-msg-btn icon-btn';
-        deleteBtn.textContent = '❌';
+        deleteBtn.textContent = '🗑️';
         deleteBtn.title = 'Удалить вопрос и ответ';
         deleteBtn.style.cssText = 'padding: 4px 8px; font-size: 12px;';
         deleteBtn.onclick = () => deleteMessage(currentChat.id, m.id);
@@ -721,22 +722,64 @@ function renderMessagesInternal() {
 
           // Если значение содержит переносы строк - используем textarea
           if (cellStr.includes('\n')) {
-            const textarea = document.createElement('textarea');
-            textarea.className = 'table-cell-textarea';
-            textarea.value = cellStr;
-            textarea.readOnly = true;
+            // Проверяем длину текста
+            if (cellStr.length > MAX_TABLE_CELL_LENGTH) {
+              // Длинный многострочный текст - создаем обертку с кнопкой
+              const wrapper = document.createElement('div');
+              wrapper.className = 'cell-text-truncated';
 
-            // Функция для автоматической подстройки высоты
-            const adjustHeight = () => {
-              textarea.style.height = 'auto';
-              // Добавляем небольшой запас для padding и border
-              textarea.style.height = (textarea.scrollHeight + 4) + 'px';
-            };
+              // Короткая версия
+              const shortTextarea = document.createElement('textarea');
+              shortTextarea.className = 'table-cell-textarea cell-text-short';
+              shortTextarea.value = cellStr.substring(0, MAX_TABLE_CELL_LENGTH) + '...';
+              shortTextarea.readOnly = true;
 
-            // Подстраиваем высоту после добавления в DOM
-            requestAnimationFrame(adjustHeight);
+              // Полная версия
+              const fullTextarea = document.createElement('textarea');
+              fullTextarea.className = 'table-cell-textarea cell-text-full';
+              fullTextarea.value = cellStr;
+              fullTextarea.readOnly = true;
+              fullTextarea.style.display = 'none';
 
-            td.appendChild(textarea);
+              // Кнопка раскрытия
+              const expandBtn = document.createElement('button');
+              expandBtn.className = 'cell-expand-btn';
+              expandBtn.textContent = 'читать далее';
+              expandBtn.title = 'Показать полный текст';
+              expandBtn.onclick = function() { window.toggleCellText(this); };
+
+              wrapper.appendChild(shortTextarea);
+              wrapper.appendChild(fullTextarea);
+              wrapper.appendChild(expandBtn);
+
+              // Подстраиваем высоту textarea после добавления в DOM
+              requestAnimationFrame(() => {
+                shortTextarea.style.height = 'auto';
+                shortTextarea.style.height = (shortTextarea.scrollHeight + 4) + 'px';
+                fullTextarea.style.height = 'auto';
+                fullTextarea.style.height = (fullTextarea.scrollHeight + 4) + 'px';
+              });
+
+              td.appendChild(wrapper);
+            } else {
+              // Обычный многострочный текст
+              const textarea = document.createElement('textarea');
+              textarea.className = 'table-cell-textarea';
+              textarea.value = cellStr;
+              textarea.readOnly = true;
+
+              // Функция для автоматической подстройки высоты
+              const adjustHeight = () => {
+                textarea.style.height = 'auto';
+                // Добавляем небольшой запас для padding и border
+                textarea.style.height = (textarea.scrollHeight + 4) + 'px';
+              };
+
+              // Подстраиваем высоту после добавления в DOM
+              requestAnimationFrame(adjustHeight);
+
+              td.appendChild(textarea);
+            }
           } else {
             // Обычная ячейка
             td.innerHTML = escapeCell(undefined, col, row);

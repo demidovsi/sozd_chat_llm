@@ -30,6 +30,31 @@ export function isUrl(string) {
   }
 }
 
+/**
+ * Форматирует timestamp в читаемый формат (убирает микросекунды, timezone, заменяет T на пробел)
+ * Входной формат:
+ *   - 2025-12-30T11:50:42.605428
+ *   - 2025-12-30T11:50:42Z
+ *   - 2025-12-30T11:50:42.559263+00:00
+ * Выходной формат: 2025-12-30 11:50:42
+ * @param {string} timestamp - Timestamp строка
+ * @returns {string} - Отформатированный timestamp или исходная строка если не является timestamp
+ */
+export function formatTimestamp(timestamp) {
+  if (typeof timestamp !== 'string') return timestamp;
+
+  // Проверяем, является ли это ISO 8601 timestamp (с поддержкой timezone offset)
+  const isoRegex = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/;
+  const match = timestamp.match(isoRegex);
+
+  if (match) {
+    // Возвращаем в формате YYYY-MM-DD HH:MM:SS
+    return `${match[1]} ${match[2]}`;
+  }
+
+  return timestamp;
+}
+
 export function getColumnsFromRows(rows) {
   const set = new Set();
   for (const r of rows) {

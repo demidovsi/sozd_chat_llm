@@ -4,14 +4,18 @@ import os
 import logging
 import base64
 
-from flask import Flask, jsonify, send_file, request
+from flask import Flask, jsonify, send_file, request, redirect, url_for, session
 from flask import render_template
+from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from google.cloud import storage
 from io import BytesIO
 import py7zr
 import tempfile
 
 import config
+from models import Database, User
+import auth_service
+from auth_middleware import admin_required, schema_access_required
 
 # Настройка логирования для Cloud Run
 logging.basicConfig(level=logging.INFO)
@@ -48,11 +52,27 @@ def get_gcs_credentials_json():
     return None
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.urandom(20).hex()
+app.config['SECRET_KEY'] = config.SECRET_KEY
 app.permanent = False
 app.permanent_session_lifetime = datetime.timedelta(hours=24)
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login_page'
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Load user by ID for Flask-Login"""
+    db = Database()
+    user_dict = db.fetchone("SELECT * FROM users WHERE id = ?", (int(user_id),))
+    return User(user_dict) if user_dict else None
+
+# Initialize database
+db = Database()
+db.init_db()
 
 # CORS middleware для Cloud Run
 @app.after_request
@@ -64,8 +84,213 @@ def after_request(response):
 
 
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
+
+@app.route('/login')
+def login_page():
+    """Login page"""
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    return render_template('login.html')
+
+# ===== AUTH API ENDPOINTS =====
+
+@app.route('/api/auth/login', methods=['POST'])
+def api_login():
+    """Login API endpoint"""
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    remember = data.get('remember', False)
+
+    if not username or not password:
+        return jsonify({'success': False, 'message': 'Username and password required'}), 400
+
+    user = auth_service.authenticate_user(username, password)
+
+    if user:
+        login_user(user, remember=remember)
+        auth_service.log_activity(user.id, 'login', f'Logged in as {username}', request.remote_addr, request.user_agent.string)
+
+        return jsonify({
+            'success': True,
+            'user': user.to_dict(include_schemas=True)
+        })
+    else:
+        auth_service.log_activity(None, 'login_failed', f'Failed login attempt for {username}', request.remote_addr, request.user_agent.string)
+        return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+
+@app.route('/api/auth/logout', methods=['POST'])
+@login_required
+def api_logout():
+    """Logout API endpoint"""
+    user_id = current_user.id
+    username = current_user.username
+    auth_service.log_activity(user_id, 'logout', f'Logged out: {username}', request.remote_addr, request.user_agent.string)
+    logout_user()
+    return jsonify({'success': True})
+
+@app.route('/api/auth/me', methods=['GET'])
+@login_required
+def api_me():
+    """Get current user info"""
+    return jsonify({
+        'success': True,
+        'user': current_user.to_dict(include_schemas=True)
+    })
+
+@app.route('/api/schemas', methods=['GET'])
+@login_required
+def api_schemas():
+    """Get available schemas for current user"""
+    # Маппинг schema value -> label
+    SCHEMA_LABELS = {
+        'sozd': 'СОЗД',
+        'lib': 'Гаазе',
+        'family': 'Семья',
+        'urban': 'Игра',
+        'eco': 'ГЕО-ЭКО',
+        'gen': 'ЕВГЕНИЯ',
+        'ohi': 'Наш дом Израиль'
+    }
+
+    schema_names = auth_service.get_user_schemas(current_user.id)
+    schemas_with_labels = [
+        {'value': name, 'label': SCHEMA_LABELS.get(name, name)}
+        for name in schema_names
+    ]
+
+    return jsonify({
+        'success': True,
+        'schemas': schemas_with_labels
+    })
+
+# ===== ADMIN API ENDPOINTS =====
+
+@app.route('/api/admin/users', methods=['GET'])
+@login_required
+@admin_required
+def api_admin_users():
+    """Get all users (admin only)"""
+    users = auth_service.get_all_users()
+    return jsonify({
+        'success': True,
+        'users': [user.to_dict(include_schemas=True) for user in users]
+    })
+
+@app.route('/api/admin/users', methods=['POST'])
+@login_required
+@admin_required
+def api_admin_create_user():
+    """Create new user (admin only)"""
+    data = request.get_json()
+    result = auth_service.create_user(
+        username=data.get('username'),
+        email=data.get('email'),
+        password=data.get('password'),
+        is_admin=data.get('is_admin', False),
+        is_active=data.get('is_active', True),
+        schemas=data.get('schemas', [])
+    )
+
+    if result['success']:
+        auth_service.log_activity(
+            current_user.id,
+            'admin_create_user',
+            f'Created user: {data.get("username")}',
+            request.remote_addr,
+            request.user_agent.string
+        )
+
+    return jsonify(result)
+
+@app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
+@login_required
+@admin_required
+def api_admin_update_user(user_id):
+    """Update user (admin only)"""
+    data = request.get_json()
+    result = auth_service.update_user(
+        user_id=user_id,
+        username=data.get('username'),
+        email=data.get('email'),
+        is_admin=data.get('is_admin'),
+        is_active=data.get('is_active'),
+        schemas=data.get('schemas')
+    )
+
+    if result['success']:
+        auth_service.log_activity(
+            current_user.id,
+            'admin_update_user',
+            f'Updated user ID: {user_id}',
+            request.remote_addr,
+            request.user_agent.string
+        )
+
+    return jsonify(result)
+
+@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+@login_required
+@admin_required
+def api_admin_delete_user(user_id):
+    """Delete user (admin only)"""
+    if user_id == current_user.id:
+        return jsonify({'success': False, 'message': 'Cannot delete yourself'}), 400
+
+    result = auth_service.delete_user(user_id)
+
+    if result['success']:
+        auth_service.log_activity(
+            current_user.id,
+            'admin_delete_user',
+            f'Deleted user ID: {user_id}',
+            request.remote_addr,
+            request.user_agent.string
+        )
+
+    return jsonify(result)
+
+@app.route('/api/admin/users/<int:user_id>/reset-password', methods=['POST'])
+@login_required
+@admin_required
+def api_admin_reset_password(user_id):
+    """Reset user password (admin only)"""
+    data = request.get_json()
+    new_password = data.get('new_password')
+
+    if not new_password or len(new_password) < 6:
+        return jsonify({'success': False, 'message': 'Password must be at least 6 characters'}), 400
+
+    result = auth_service.reset_user_password(user_id, new_password)
+
+    if result['success']:
+        auth_service.log_activity(
+            current_user.id,
+            'admin_reset_password',
+            f'Reset password for user ID: {user_id}',
+            request.remote_addr,
+            request.user_agent.string
+        )
+
+    return jsonify(result)
+
+@app.route('/api/admin/activity', methods=['GET'])
+@login_required
+@admin_required
+def api_admin_activity():
+    """Get activity logs (admin only)"""
+    user_id = request.args.get('user_id', type=int)
+    limit = request.args.get('limit', 100, type=int)
+
+    logs = auth_service.get_activity_logs(user_id=user_id, limit=limit)
+
+    return jsonify({
+        'success': True,
+        'logs': logs
+    })
 
 @app.route('/api/version')
 def get_version():

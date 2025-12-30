@@ -2,7 +2,8 @@
  * Функции форматирования данных
  */
 
-import { escapeHtml, isUrl } from './utils.js';
+import { escapeHtml, isUrl, formatTimestamp } from './utils.js';
+import { MAX_TABLE_CELL_LENGTH, MAX_CARD_TEXT_LENGTH } from './config.js';
 
 /**
  * Получает значение из объекта по пути с точкой
@@ -46,7 +47,10 @@ export function escapeCell(v, column, row) {
   if (v == null) return "<em>null</em>";
   if (v === "") return "<em>empty</em>";
 
-  const str = String(v);
+  let str = String(v);
+
+  // Форматируем timestamp в читаемый формат YYYY-MM-DD HH:MM:SS
+  str = formatTimestamp(str);
 
   // Специальная обработка для filename_bucket - создаем кнопку скачивания
   // Проверка нечувствительна к регистру (filename_bucket или FILENAME_BUCKET)
@@ -56,12 +60,56 @@ export function escapeCell(v, column, row) {
     return `<button class="download-btn" data-filename="${escapedFilename}" title="Скачать файл из GCS">📥 ${escapedFilename}</button>`;
   }
 
+  // URL - делаем гиперссылкой без обрезания
   if (isUrl(str)) {
     const escapedUrl = escapeHtml(str);
     return `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer" class="table-link" title="Открыть в новом окне">${escapedUrl}</a>`;
   }
 
+  // Обрезаем длинный текст с кнопкой "читать далее"
+  if (str.length > MAX_TABLE_CELL_LENGTH) {
+    const truncated = str.substring(0, MAX_TABLE_CELL_LENGTH);
+    const escapedTruncated = escapeHtml(truncated);
+    const escapedFull = escapeHtml(str);
+
+    return `<span class="cell-text-truncated">
+      <span class="cell-text-short">${escapedTruncated}...</span>
+      <span class="cell-text-full" style="display: none;">${escapedFull}</span>
+      <button class="cell-expand-btn" onclick="toggleCellText(this)" title="Показать полный текст">читать далее</button>
+    </span>`;
+  }
+
   return escapeHtml(str);
+}
+
+/**
+ * Форматирует значение для отображения в карточке с обрезкой длинного текста
+ * @param {*} value - Значение для форматирования
+ * @returns {string} Отформатированная строка (может содержать HTML для кнопки "читать далее")
+ */
+function formatCardValue(value) {
+  if (value === null) return "null";
+
+  let str = String(value);
+
+  // Форматируем timestamp в читаемый формат YYYY-MM-DD HH:MM:SS
+  str = formatTimestamp(str);
+
+  // Если текст короткий, возвращаем как есть
+  if (str.length <= MAX_CARD_TEXT_LENGTH) {
+    return str;
+  }
+
+  // Для длинного текста создаем обертку с кнопкой "читать далее"
+  const truncated = str.substring(0, MAX_CARD_TEXT_LENGTH);
+  const escapedTruncated = escapeHtml(truncated);
+  const escapedFull = escapeHtml(str);
+
+  return `<span class="cell-text-truncated">
+    <span class="cell-text-short">${escapedTruncated}...</span>
+    <span class="cell-text-full" style="display: none;">${escapedFull}</span>
+    <button class="cell-expand-btn" onclick="toggleCellText(this)" title="Показать полный текст">читать далее</button>
+  </span>`;
 }
 
 /**
@@ -112,9 +160,10 @@ export function formatExecuteResult(result) {
   return result
     .map((row, idx) => {
       if (typeof row !== "object" || row === null) {
+        const formattedValue = formatCardValue(row);
         return result.length === 1
-          ? String(row)
-          : `${idx + 1}) ${String(row)}`;
+          ? formattedValue
+          : `${idx + 1}) ${formattedValue}`;
       }
 
       const lines = [];
@@ -137,7 +186,7 @@ export function formatExecuteResult(result) {
                 );
               } else {
                 lines.push(
-                  `      **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
+                  `      **${subKey}**: ${formatCardValue(subValue)}`
                 );
               }
             }
@@ -155,7 +204,7 @@ export function formatExecuteResult(result) {
               );
             } else {
               lines.push(
-                `    **${subKey}**: ${subValue === null ? "null" : String(subValue)}`
+                `    **${subKey}**: ${formatCardValue(subValue)}`
               );
             }
           }
@@ -169,7 +218,7 @@ export function formatExecuteResult(result) {
             );
           } else {
             lines.push(
-              `  **${key}**: ${value === null ? "null" : String(value)}`
+              `  **${key}**: ${formatCardValue(value)}`
             );
           }
         }

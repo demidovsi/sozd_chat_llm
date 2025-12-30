@@ -13,8 +13,11 @@ export const LS_KEY = "chatui_demo_v1";
 export const THEME_KEY = "chatui_theme";
 export const DB_SCHEMA_KEY = "chatui_db_schema";
 export const QUERY_MODE_KEY = "chatui_query_mode"; // Ключ для сохранения режима запросов
+export const AUTH_KEY = "chatui_current_user"; // Ключ для текущего пользователя
 export const MAX_TABLE_COLS = 20; // Максимальное количество колонок в таблице
 export const MAX_AXIS_LABEL_LENGTH = 20; // Максимальная длина метки на оси графика
+export const MAX_TABLE_CELL_LENGTH = 200; // Максимальная длина текста в ячейке таблицы
+export const MAX_CARD_TEXT_LENGTH = 500; // Максимальная длина текста в карточках
 
 // Режимы работы приложения
 export const QUERY_MODES = {

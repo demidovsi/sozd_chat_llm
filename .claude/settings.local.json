@@ -9,7 +9,9 @@
       "Bash(powershell -Command \"Start-Process -FilePath ''cmd.exe'' -ArgumentList ''/c auto_deploy.bat'' -Wait -NoNewWindow\")",
       "Bash(powershell -Command:*)",
       "Bash(git commit:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(pip install:*)",
+      "Bash(python init_db.py:*)"
     ]
   }
 }

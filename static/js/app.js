@@ -11,6 +11,8 @@ import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy, setOve
 import { VoiceInput } from './modules/voice.js';
 import { config, DB_SCHEMAS, QUERY_MODES } from './modules/config.js';
 import { getApiVersion, clearApiCache, clearSchemaCache, clearQueryCache } from './modules/api.js';
+import { getCurrentUser, getAvailableSchemasWithLabels, logout, isAdmin } from './modules/auth.js';
+import * as admin from './modules/admin.js';
 
 // ============================================================================
 // История ввода
@@ -55,9 +57,18 @@ function isCursorAtEnd(textarea) {
 }
 
 // Инициализация при загрузке DOM
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const startTime = performance.now();
   console.log('DOM loaded, starting initialization...');
+
+  // Check authentication first
+  const user = await getCurrentUser();
+  if (!user) {
+    console.log('Not authenticated, redirecting to login...');
+    window.location.href = '/login';
+    return;
+  }
+  console.log('Authenticated as:', user.username);
 
   // Получение элементов
   const chatListEl = el("chatList");
@@ -90,6 +101,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const showVersionBtn = el("showVersionBtn");
   const clearCacheBtn = el("clearCacheBtn");
   const clearSchemaCacheBtn = el("clearSchemaCacheBtn");
+  const adminPanelMenuItem = el("adminPanelMenuItem");
+  const newLoginMenuItem = el("newLoginMenuItem");
+
+  const logoutBtn = el("logoutBtn");
+  const userName = el("userName");
+  const userEmail = el("userEmailDisplay");
+  const userAvatar = el("userAvatar");
 
   // Проверка элементов
   if (!chatListEl || !messagesEl || !chatTitleEl) {
@@ -103,6 +121,186 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Передаем элементы в модуль render
   setElements({ chatListEl, messagesEl, chatTitleEl, searchInputEl, promptInput });
+
+  // Update user UI
+  if (userName) userName.textContent = user.username;
+  if (userEmail) userEmail.textContent = user.email;
+  if (userAvatar) userAvatar.textContent = user.username.charAt(0).toUpperCase();
+
+  // Show admin menu item if user is admin
+  if (isAdmin() && adminPanelMenuItem) {
+    adminPanelMenuItem.style.display = 'flex';
+  }
+
+  // Logout handler
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      await logout();
+      window.location.href = '/login';
+    });
+  }
+
+  // Admin panel handler
+  if (adminPanelMenuItem) {
+    adminPanelMenuItem.addEventListener('click', () => {
+      if (toolsMenu) toolsMenu.style.display = 'none';
+      admin.openAdminPanel();
+    });
+  }
+
+  // New login handler
+  if (newLoginMenuItem) {
+    newLoginMenuItem.addEventListener('click', async () => {
+      if (toolsMenu) toolsMenu.style.display = 'none';
+      if (confirm('Вы уверены, что хотите выйти и войти под другим пользователем?')) {
+        await logout();
+        window.location.href = '/login';
+      }
+    });
+  }
+
+  // Global functions for admin panel (called from HTML onclick)
+  window.editUser = (userId) => {
+    admin.openUserForm(userId);
+  };
+
+  window.deleteUserConfirm = async (userId) => {
+    if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
+      const result = await admin.deleteUser(userId);
+      if (result.success) {
+        alert('Пользователь удален');
+        admin.refreshUsers();
+      } else {
+        alert('Ошибка: ' + (result.message || 'Не удалось удалить пользователя'));
+      }
+    }
+  };
+
+  window.resetPassword = async (userId) => {
+    const newPassword = prompt('Введите новый пароль (минимум 6 символов):');
+    if (newPassword && newPassword.length >= 6) {
+      const result = await admin.resetUserPassword(userId, newPassword);
+      if (result.success) {
+        alert('Пароль успешно сброшен');
+      } else {
+        alert('Ошибка: ' + (result.message || 'Не удалось сбросить пароль'));
+      }
+    } else if (newPassword !== null) {
+      alert('Пароль должен содержать минимум 6 символов');
+    }
+  };
+
+  // Toggle cell text expansion
+  window.toggleCellText = (button) => {
+    const container = button.closest('.cell-text-truncated');
+    if (!container) return;
+
+    const shortText = container.querySelector('.cell-text-short');
+    const fullText = container.querySelector('.cell-text-full');
+
+    if (shortText && fullText) {
+      const isExpanded = fullText.style.display !== 'none';
+
+      if (isExpanded) {
+        // Collapse
+        shortText.style.display = shortText.tagName === 'TEXTAREA' ? 'block' : '';
+        fullText.style.display = 'none';
+        button.textContent = 'читать далее';
+        button.title = 'Показать полный текст';
+
+        // Если это textarea, пересчитываем высоту
+        if (shortText.tagName === 'TEXTAREA') {
+          requestAnimationFrame(() => {
+            shortText.style.height = 'auto';
+            shortText.style.height = (shortText.scrollHeight + 4) + 'px';
+          });
+        }
+      } else {
+        // Expand
+        shortText.style.display = 'none';
+        fullText.style.display = fullText.tagName === 'TEXTAREA' ? 'block' : '';
+        button.textContent = 'свернуть';
+        button.title = 'Скрыть полный текст';
+
+        // Если это textarea, пересчитываем высоту
+        if (fullText.tagName === 'TEXTAREA') {
+          requestAnimationFrame(() => {
+            fullText.style.height = 'auto';
+            fullText.style.height = (fullText.scrollHeight + 4) + 'px';
+          });
+        }
+      }
+    }
+  };
+
+  // Admin panel event listeners
+  const addUserBtn = el("addUserBtn");
+  if (addUserBtn) {
+    addUserBtn.addEventListener('click', () => {
+      admin.openUserForm();
+    });
+  }
+
+  // Admin tabs
+  document.querySelectorAll('.admin-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      const tabName = e.target.getAttribute('data-tab');
+      admin.switchAdminTab(tabName);
+    });
+  });
+
+  // Close modal buttons
+  document.querySelectorAll('.close-modal').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const modal = e.target.closest('.modal');
+      if (modal) {
+        modal.classList.remove('active');
+      }
+    });
+  });
+
+  // Close modal on background click
+  document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.remove('active');
+      }
+    });
+  });
+
+  // User form submission
+  const userForm = el("userForm");
+  if (userForm) {
+    userForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(userForm);
+      const result = await admin.saveUser(formData);
+
+      if (result.success) {
+        alert('Пользователь сохранен');
+        admin.closeUserForm();
+        admin.refreshUsers();
+      } else {
+        alert('Ошибка: ' + (result.message || 'Не удалось сохранить пользователя'));
+      }
+    });
+  }
+
+  // Activity filter
+  const refreshActivityBtn = el("refreshActivityBtn");
+  if (refreshActivityBtn) {
+    refreshActivityBtn.addEventListener('click', () => {
+      admin.refreshActivity();
+    });
+  }
+
+  // Auto-refresh activity on user filter change
+  const activityUserFilter = el("activityUserFilter");
+  if (activityUserFilter) {
+    activityUserFilter.addEventListener('change', () => {
+      admin.refreshActivity();
+    });
+  }
 
   // Загрузка состояния
   const loadedState = loadState();
@@ -190,17 +388,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /** ---------- DB Schema Select ---------- **/
   if (dbSchemaSelect) {
-    // Заполняем select опциями из конфига
-    DB_SCHEMAS.forEach(schema => {
+    // Загружаем доступные схемы для текущего пользователя
+    const availableSchemas = await getAvailableSchemasWithLabels();
+
+    // Очищаем существующие опции
+    dbSchemaSelect.innerHTML = '';
+
+    // Заполняем select только доступными схемами
+    availableSchemas.forEach(schema => {
       const option = document.createElement('option');
       option.value = schema.value;
       option.textContent = schema.label;
       dbSchemaSelect.appendChild(option);
     });
 
-    // Устанавливаем текущее значение
-    if (dbSchema) {
+    // Устанавливаем текущее значение если оно доступно
+    if (dbSchema && availableSchemas.some(s => s.value === dbSchema)) {
       dbSchemaSelect.value = dbSchema;
+    } else if (availableSchemas.length > 0) {
+      // Если текущая схема недоступна, выбираем первую доступную
+      setDbSchema(availableSchemas[0].value);
+      dbSchemaSelect.value = availableSchemas[0].value;
     }
 
     // Обработчик изменения схемы

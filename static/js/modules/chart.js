@@ -4,9 +4,14 @@
 
 import { MAX_AXIS_LABEL_LENGTH } from './config.js';
 
-// Регистрация плагина zoom при загрузке модуля
-if (typeof Chart !== 'undefined' && typeof window.ChartZoom !== 'undefined') {
-  Chart.register(window.ChartZoom);
+// Регистрация плагинов при загрузке модуля
+if (typeof Chart !== 'undefined') {
+  if (typeof window.ChartZoom !== 'undefined') {
+    Chart.register(window.ChartZoom);
+  }
+  if (typeof ChartDataLabels !== 'undefined') {
+    Chart.register(ChartDataLabels);
+  }
 }
 
 /**
@@ -132,6 +137,21 @@ export class ChartAnalyzer {
       return { name: colName, type: 'categorical' };
     });
   }
+}
+
+/**
+ * Преобразует число в римские цифры
+ * @param {number} num - число от 1 до 20
+ * @returns {string} - римская цифра
+ */
+function toRoman(num) {
+  const romanNumerals = {
+    1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V',
+    6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X',
+    11: 'XI', 12: 'XII', 13: 'XIII', 14: 'XIV', 15: 'XV',
+    16: 'XVI', 17: 'XVII', 18: 'XVIII', 19: 'XIX', 20: 'XX'
+  };
+  return romanNumerals[num] || num.toString();
 }
 
 /**
@@ -329,8 +349,9 @@ export class ChartRenderer {
                   const value = data.datasets[0].data[i];
                   const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
                   const percentage = ((value / total) * 100).toFixed(1);
+                  const roman = toRoman(i + 1); // +1 потому что индексы с 0
                   return {
-                    text: `${label}: ${percentage}%`,
+                    text: `${roman}. ${label}: ${percentage}%`,
                     fillStyle: data.datasets[0].backgroundColor[i],
                     hidden: false,
                     index: i
@@ -354,17 +375,17 @@ export class ChartRenderer {
               const value = Number(context.parsed).toLocaleString('ru-RU');
               const total = context.dataset.data.reduce((a, b) => a + b, 0);
               const percentage = ((context.parsed / total) * 100).toFixed(1);
-              return `${label}: ${value} (${percentage}%)`;
+              const roman = toRoman(context.dataIndex + 1);
+              return `${roman}. ${label}: ${value} (${percentage}%)`;
             }
           }
         },
         datalabels: {
           color: '#fff',
-          font: { size: 14, weight: 'bold' },
+          font: { size: 16, weight: 'bold' },
           formatter: (value, context) => {
-            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-            const percentage = ((value / total) * 100).toFixed(1);
-            return percentage > 5 ? `${percentage}%` : ''; // Показываем только если > 5%
+            const roman = toRoman(context.dataIndex + 1);
+            return roman; // Показываем только римскую цифру на секторе
           }
         }
       }

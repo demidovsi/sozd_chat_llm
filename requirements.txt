@@ -2,3 +2,6 @@ flask==3.1.1
 requests
 google-cloud-storage
 py7zr
+bcrypt
+flask-login
+python-dotenv

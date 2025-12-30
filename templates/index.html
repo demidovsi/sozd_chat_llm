@@ -13,10 +13,17 @@
     <aside class="sidebar" aria-label="History sidebar">
       <div class="sidebar-top">
         <div class="sidebar-buttons">
-          <button id="newChatBtn" class="btn btn-primary">+ New chat</button>
           <div class="tools-menu-container">
             <button id="toolsBtn" class="btn btn-ghost btn-icon" title="Инструменты">⚙️</button>
             <div id="toolsMenu" class="tools-menu" style="display: none;">
+              <div class="tools-menu-item" id="adminPanelMenuItem" style="display: none;">
+                <span class="tools-menu-icon">⚙️</span>
+                <span>Панель администратора</span>
+              </div>
+              <div class="tools-menu-item" id="newLoginMenuItem">
+                <span class="tools-menu-icon">🔄</span>
+                <span>Войти под другим пользователем</span>
+              </div>
               <div class="tools-menu-item" id="showVersionBtn">
                 <span class="tools-menu-icon">ℹ️</span>
                 <span>Версия API gemini</span>
@@ -31,6 +38,7 @@
               </div>
             </div>
           </div>
+          <button id="newChatBtn" class="btn btn-primary">+ New chat</button>
         </div>
         <div id="versionInfo" class="version-info"></div>
           <!--
@@ -50,12 +58,13 @@
 
       <div class="sidebar-bottom">
         <div class="user-chip">
-          <div class="avatar">U</div>
+          <div class="avatar" id="userAvatar">U</div>
           <div class="user-meta">
-            <div class="user-name">You</div>
-            <div class="user-sub">Local demo</div>
+            <div class="user-name" id="userName">Loading...</div>
+            <div class="user-sub" id="userEmailDisplay">...</div>
           </div>
         </div>
+        <button id="logoutBtn" class="btn btn-ghost" style="margin-top: 0.5rem; width: 100%;" title="Выйти из системы">Выйти</button>
       </div>
     </aside>
 
@@ -123,7 +132,7 @@
           <div class="composer-hint">
             <span>Shift+Enter — новая строка</span>
             <span class="dot">•</span>
-            <span>Enter — отправить</span>
+            <span>Enter в конце — отправить</span>
           </div>
         </form>
       </footer>
@@ -164,6 +173,134 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <!-- Optional: code highlighting (DISABLED due to require error) -->
   <!-- <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.10.0/build/highlight.min.js"></script> -->
+
+  <!-- Admin Panel Modal -->
+  <div id="adminModal" class="modal">
+    <div class="modal-content admin-modal">
+      <div class="modal-header">
+        <h3>Панель администратора</h3>
+        <button class="close-modal" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="admin-tabs">
+          <button class="admin-tab active" data-tab="users" type="button">Пользователи</button>
+          <button class="admin-tab" data-tab="activity" type="button">История активности</button>
+          <button id="addUserBtn" class="btn btn-primary admin-add-btn" type="button">+ Добавить пользователя</button>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="adminTabUsers" class="admin-tab-content">
+          <div class="admin-table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Имя пользователя</th>
+                  <th>Email</th>
+                  <th>Статус</th>
+                  <th>Роль</th>
+                  <th>Доступные схемы</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <tr><td colspan="6" style="text-align: center; padding: 2rem;">Загрузка...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Activity Tab -->
+        <div id="adminTabActivity" class="admin-tab-content" style="display: none;">
+          <div class="admin-filters">
+            <select id="activityUserFilter" class="input">
+              <option value="">Все пользователи</option>
+            </select>
+            <button id="refreshActivityBtn" class="btn btn-outline" type="button">Обновить</button>
+          </div>
+
+          <div class="admin-table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Пользователь</th>
+                  <th>Действие</th>
+                  <th>Детали</th>
+                  <th>IP адрес</th>
+                  <th>Дата</th>
+                </tr>
+              </thead>
+              <tbody id="activityTableBody">
+                <tr><td colspan="5" style="text-align: center; padding: 2rem;">Загрузка...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Form Modal -->
+  <div id="userFormModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 id="userFormTitle">Добавить пользователя</h3>
+        <button class="close-modal" type="button">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="userForm">
+          <input type="hidden" id="userId" name="userId">
+
+          <div class="form-group">
+            <label for="userUsername">Имя пользователя *</label>
+            <input type="text" id="userUsername" name="username" class="input" required>
+          </div>
+
+          <div class="form-group">
+            <label for="userEmail">Email *</label>
+            <input type="text" id="userEmail" name="email" class="input" required autocomplete="nope">
+          </div>
+
+          <div class="form-group" id="passwordGroup">
+            <label for="userPassword">Пароль *</label>
+            <input type="password" id="userPassword" name="password" class="input" minlength="6">
+            <small style="color: var(--text-secondary); font-size: 0.875rem;">Минимум 6 символов</small>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="userIsAdmin" name="is_admin">
+              <span>Администратор</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="userIsActive" name="is_active" checked>
+              <span>Активен</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label>Доступ к схемам БД:</label>
+            <div id="schemaCheckboxes" class="schema-checkboxes">
+              <label class="checkbox-label"><input type="checkbox" id="schema_sozd" name="schema_sozd"><span>СОЗД</span></label>
+              <label class="checkbox-label"><input type="checkbox" id="schema_lib" name="schema_lib"><span>Гаазе</span></label>
+              <label class="checkbox-label"><input type="checkbox" id="schema_family" name="schema_family"><span>Семья</span></label>
+              <label class="checkbox-label"><input type="checkbox" id="schema_urban" name="schema_urban"><span>Игра</span></label>
+              <label class="checkbox-label"><input type="checkbox" id="schema_eco" name="schema_eco"><span>ГЕО-ЭКО</span></label>
+              <label class="checkbox-label"><input type="checkbox" id="schema_gen" name="schema_gen"><span>ЕВГЕНИЯ</span></label>
+              <label class="checkbox-label"><input type="checkbox" id="schema_ohi" name="schema_ohi"><span>Наш дом Израиль</span></label>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <button type="button" class="btn btn-ghost close-modal">Отмена</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="/static/js/app.js"></script>
 </body>
