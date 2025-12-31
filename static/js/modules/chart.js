@@ -314,7 +314,8 @@ export class ChartRenderer {
           }
         },
         y: {
-          beginAtZero: true,
+          beginAtZero: false,
+          grace: '5%', // Добавляет 5% отступа сверху и снизу для лучшей читаемости
           title: {
             display: true,
             text: config.yColumns.join(', '),
