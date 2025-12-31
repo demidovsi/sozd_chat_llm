@@ -19,8 +19,19 @@ export function setOverlayText(text) {
   const genOverlay = document.getElementById("genOverlay");
   if (genOverlay) {
     const genText = genOverlay.querySelector(".gen-text");
+    const genCard = genOverlay.querySelector(".gen-card");
+
     if (genText) {
       genText.textContent = text;
+    }
+
+    // Добавляем класс "receiving" для "Receiving data…"
+    if (genCard) {
+      if (text.toLowerCase().includes("receiving")) {
+        genCard.classList.add("receiving");
+      } else {
+        genCard.classList.remove("receiving");
+      }
     }
   }
 }

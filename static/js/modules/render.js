@@ -55,6 +55,56 @@ function saveScrollPosition() {
 }
 
 // ============================================================================
+// Утилиты оптимизации рендеринга
+// ============================================================================
+
+/**
+ * Асинхронная подсветка блоков кода порциями
+ * Использует requestIdleCallback для выполнения подсветки во время простоя браузера
+ * @param {Array<HTMLElement>} codeBlocks - массив элементов code для подсветки
+ */
+function highlightCodeBlocksAsync(codeBlocks) {
+  if (codeBlocks.length === 0) return;
+
+  const CHUNK_SIZE = 5; // Обрабатываем по 5 блоков за раз
+  let currentIndex = 0;
+
+  const processChunk = (deadline) => {
+    // Обрабатываем блоки пока есть время или пока не закончатся
+    while (currentIndex < codeBlocks.length && (deadline.timeRemaining() > 0 || deadline.didTimeout)) {
+      const endIndex = Math.min(currentIndex + CHUNK_SIZE, codeBlocks.length);
+
+      for (let i = currentIndex; i < endIndex; i++) {
+        try {
+          hljs.highlightElement(codeBlocks[i]);
+        } catch (err) {
+          console.warn('Syntax highlighting error:', err);
+        }
+      }
+
+      currentIndex = endIndex;
+    }
+
+    // Если есть еще блоки - планируем следующую порцию
+    if (currentIndex < codeBlocks.length) {
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(processChunk, { timeout: 500 });
+      } else {
+        // Fallback для браузеров без requestIdleCallback
+        setTimeout(() => processChunk({ timeRemaining: () => 10, didTimeout: false }), 0);
+      }
+    }
+  };
+
+  // Запускаем первую порцию
+  if (typeof requestIdleCallback !== 'undefined') {
+    requestIdleCallback(processChunk, { timeout: 500 });
+  } else {
+    setTimeout(() => processChunk({ timeRemaining: () => 10, didTimeout: false }), 0);
+  }
+}
+
+// ============================================================================
 // Внутренние функции для работы с сообщениями
 // ============================================================================
 
@@ -378,7 +428,9 @@ function renderMessagesInternal() {
   const currentChat = getActiveChat();
   if (!currentChat) return;
 
-  messagesContainer.innerHTML = '';
+  // Используем DocumentFragment для пакетной вставки
+  const fragment = document.createDocumentFragment();
+  const codeBlocksToHighlight = [];
 
   for (const m of currentChat.messages) {
     const msg = document.createElement('div');
@@ -504,8 +556,11 @@ function renderMessagesInternal() {
       collapsedPlaceholder.textContent = '[Сообщение свернуто]';
     }
 
+    // ⭐ ОПТИМИЗАЦИЯ: Не рендерим тяжелый контент для свернутых сообщений
+    const shouldRenderContent = !m.collapsed;
+
     // Текстовое содержимое
-    if (m.content) {
+    if (m.content && shouldRenderContent) {
       const content = document.createElement('div');
       content.className = 'content';
       content.innerHTML = renderMarkdownSafe(m.content);
@@ -526,7 +581,7 @@ function renderMessagesInternal() {
     }
 
     // SQL блок
-    if (m.sql) {
+    if (m.sql && shouldRenderContent) {
       const sqlWrap = document.createElement('div');
       sqlWrap.className = 'sql-wrap';
       if (m.error) sqlWrap.classList.add('error');
@@ -575,14 +630,14 @@ function renderMessagesInternal() {
         saveState();
       };
 
-      // Подсветка
-      if (typeof hljs !== 'undefined') {
-        hljs.highlightElement(sqlCode);
+      // Отложенная подсветка (добавляем в очередь)
+      if (typeof hljs !== 'undefined' && !m.collapsed) {
+        codeBlocksToHighlight.push(sqlCode);
       }
     }
 
     // Таблица
-    if (m.table && m.table.rows && m.table.rows.length > 0) {
+    if (m.table && m.table.rows && m.table.rows.length > 0 && shouldRenderContent) {
       const { columns, rows } = m.table;
 
       const tableInfo = document.createElement('div');
@@ -903,8 +958,13 @@ function renderMessagesInternal() {
     // завершение
     msg.appendChild(role);
     msg.appendChild(bubble);
-    messagesContainer.appendChild(msg);
+    fragment.appendChild(msg);
   }
+
+  // Пакетная вставка всех сообщений за один раз
+  messagesContainer.innerHTML = '';
+  messagesContainer.appendChild(fragment);
+
   updateChatTitleWithStats(chatTitleEl);
 
   // Восстанавливаем позицию скролла для текущего чата
@@ -917,7 +977,14 @@ function renderMessagesInternal() {
   }
 
   // ⭐ после рендера — выравниваем кнопки по верхней видимой строке
-  requestAnimationFrame(() => adjustHoverOffsets());
+  requestAnimationFrame(() => {
+    adjustHoverOffsets();
+
+    // Асинхронная подсветка синтаксиса (порциями, чтобы не блокировать UI)
+    if (codeBlocksToHighlight.length > 0) {
+      highlightCodeBlocksAsync(codeBlocksToHighlight);
+    }
+  });
 }
 
 /**
