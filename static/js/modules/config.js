@@ -5,7 +5,7 @@
 export const config = {
   kirill: "wqzDi8OVw43DjcOOwoTCncKZwpM=",
   URL: "https://159.223.0.234:5001/",
-  URL_rest: "https://159.223.0.234:5051/",
+  URL_rest: "http://127.0.0.1:5050/",
   GCS_BUCKET: "sozd-laws-file" // Имя корневого bucket в Google Cloud Storage
 };
 
@@ -31,8 +31,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
-        method: "GET",
+        endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
+        method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -55,8 +55,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
-        method: "GET",
+        endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
+        method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -79,8 +79,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
-        method: "GET",
+        endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
+        method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -103,8 +103,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
-        method: "GET",
+        endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
+        method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -127,8 +127,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
-        method: "GET",
+        endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
+        method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -151,8 +151,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
-        method: "GET",
+        endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
+        method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -175,8 +175,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
-        method: "GET",
+        endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
+        method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {

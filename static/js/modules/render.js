@@ -278,10 +278,9 @@ export function renderChatList() {
   const chats = state.chats
     .slice()
     .filter(c => {
-      // Фильтруем по режиму
+      // Фильтруем по режиму и схеме (все режимы теперь привязаны к схемам)
       if (c.mode !== mode.id) return false;
-      // Если режим использует схемы - фильтруем по схеме
-      if (mode.useSchemas && c.schema !== dbSchema) return false;
+      if (c.schema !== dbSchema) return false;
       return true;
     })
     .sort((a, b) => b.createdAt - a.createdAt)
