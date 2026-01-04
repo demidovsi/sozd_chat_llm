@@ -3,7 +3,7 @@
  */
 
 import { state, dbSchema } from './state.js';
-import { DB_SCHEMAS } from './config.js';
+import { getSchemaList } from './config.js';
 
 export function getMemorySize(text) {
   if (!text) return 0;
@@ -50,7 +50,8 @@ export function updateGlobalStats() {
   });
 
   // Находим название текущей схемы
-  const schemaLabel = DB_SCHEMAS.find(s => s.value === dbSchema)?.label || dbSchema;
+  const schemaList = getSchemaList();
+  const schemaLabel = schemaList.find(s => s.value === dbSchema)?.label || dbSchema;
 
   userSubEl.textContent = `${schemaLabel} • ${totalChats} чатов • ${formatSize(totalSize)}`;
 }

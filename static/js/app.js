@@ -9,7 +9,7 @@ import { renderAll, renderChatList, renderMessages, fakeStreamAnswer, setElement
 import { newChat, clearMessages, exportJSON, toggleAllMessages, updateToggleAllButton, getLastUserMessage } from './modules/actions.js';
 import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy, setOverlayText } from './modules/ui.js';
 import { VoiceInput } from './modules/voice.js';
-import { config, SCHEMA_MODES, getModesForSchema, getModeConfig } from './modules/config.js';
+import { config, SCHEMA_MODES, getSchemaList, getModesForSchema, getModeConfig } from './modules/config.js';
 import { getApiVersion, clearApiCache, clearSchemaCache, clearQueryCache } from './modules/api.js';
 import { getCurrentUser, getAvailableSchemasWithLabels, logout, isAdmin } from './modules/auth.js';
 import * as admin from './modules/admin.js';
@@ -592,7 +592,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   clearSchemaCacheBtn?.addEventListener("click", async () => {
     toolsMenu.style.display = 'none';
-    const schemaName = DB_SCHEMAS.find(s => s.value === dbSchema)?.label || dbSchema;
+    const schemaList = getSchemaList();
+    const schemaName = schemaList.find(s => s.value === dbSchema)?.label || dbSchema;
     if (!confirm(`Вы уверены, что хотите очистить кэш для схемы "${schemaName}"?`)) {
       return;
     }

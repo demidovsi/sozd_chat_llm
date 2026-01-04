@@ -2,7 +2,7 @@
  * Admin panel module
  */
 
-import { DB_SCHEMAS } from './config.js';
+import { getSchemaList } from './config.js';
 
 // === User Management ===
 
@@ -165,8 +165,9 @@ export function renderUsersTable(users) {
   }
 
   tbody.innerHTML = users.map(user => {
+    const schemaList = getSchemaList();
     const schemasText = user.schemas.length > 0
-      ? user.schemas.map(s => DB_SCHEMAS.find(ds => ds.value === s)?.label || s).join(', ')
+      ? user.schemas.map(s => schemaList.find(ds => ds.value === s)?.label || s).join(', ')
       : 'Нет доступа';
 
     const statusBadge = user.is_active
@@ -389,7 +390,8 @@ async function loadUserData(userId) {
     document.getElementById('userIsActive').checked = user.is_active;
 
     // Set schema checkboxes
-    DB_SCHEMAS.forEach(schema => {
+    const schemaList = getSchemaList();
+    schemaList.forEach(schema => {
       const checkbox = document.getElementById(`schema_${schema.value}`);
       if (checkbox) {
         checkbox.checked = user.schemas.includes(schema.value);
@@ -411,7 +413,8 @@ export async function saveUser(formData) {
   };
 
   // Collect selected schemas
-  DB_SCHEMAS.forEach(schema => {
+  const schemaList = getSchemaList();
+  schemaList.forEach(schema => {
     if (formData.get(`schema_${schema.value}`) === 'on') {
       userData.schemas.push(schema.value);
     }
