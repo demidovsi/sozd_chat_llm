@@ -233,6 +233,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
+  // Switch search result tabs
+  window.switchSearchTab = (tabsId, index) => {
+    const tabsContainer = document.getElementById(tabsId);
+    if (!tabsContainer) return;
+
+    const contentContainer = tabsContainer.nextElementSibling;
+    if (!contentContainer) return;
+
+    // Деактивируем все закладки
+    const allTabs = tabsContainer.querySelectorAll('.search-tab');
+    const allPanels = contentContainer.querySelectorAll('.search-tab-panel');
+
+    allTabs.forEach(tab => tab.classList.remove('active'));
+    allPanels.forEach(panel => panel.classList.remove('active'));
+
+    // Активируем выбранную закладку
+    const selectedTab = tabsContainer.querySelector(`[data-tab-index="${index}"]`);
+    const selectedPanel = contentContainer.querySelector(`[data-panel-index="${index}"]`);
+
+    if (selectedTab) selectedTab.classList.add('active');
+    if (selectedPanel) selectedPanel.classList.add('active');
+  };
+
   // Admin panel event listeners
   const addUserBtn = el("addUserBtn");
   if (addUserBtn) {

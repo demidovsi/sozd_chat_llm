@@ -1963,14 +1963,14 @@
 }
 
 /* ============================================================================
-   Стили для результатов векторного поиска (Search Results)
+   Стили для результатов векторного поиска (Search Results Tabs)
    ============================================================================ */
 
 .search-results {
   margin-top: 12px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0;
 }
 
 .search-results-header {
@@ -1980,22 +1980,95 @@
   padding: 10px 14px;
   background: rgba(34, 197, 94, 0.08);
   border-left: 4px solid var(--primary);
-  border-radius: 6px;
+  border-radius: 6px 6px 0 0;
 }
 
-.search-result-card {
+/* Заголовки закладок */
+.search-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 8px 0 8px;
+  background: rgba(0, 0, 0, 0.03);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.02);
-  padding: 14px 16px;
-  transition: all 0.2s ease;
+  border-top: none;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
-.search-result-card:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(34, 197, 94, 0.25);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.search-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 6px 6px 0 0;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  bottom: -1px;
+}
+
+.search-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+}
+
+.search-tab.active {
+  background: var(--panel);
+  border-color: var(--border);
+  border-bottom: 1px solid var(--panel);
+  z-index: 1;
+}
+
+/* Стили для заголовков закладок */
+.tab-number {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.tab-relevance {
+  font-size: 14px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.search-tab.high .tab-relevance {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.search-tab.medium .tab-relevance {
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.15);
+}
+
+.search-tab.low .tab-relevance {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Содержимое закладок */
+.search-tabs-content {
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  background: var(--panel);
+}
+
+.search-tab-panel {
+  display: none;
+  padding: 16px;
+}
+
+.search-tab-panel.active {
+  display: block;
 }
 
 .search-result-header {

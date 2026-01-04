@@ -1104,9 +1104,9 @@ function scrollToAssistantMessage(messageId) {
 }
 
 /**
- * Рендерит результаты векторного поиска из custom API
+ * Рендерит результаты векторного поиска из custom API в виде закладок
  * @param {Object} response - Ответ от API с массивом results
- * @returns {string} - HTML разметка с результатами поиска
+ * @returns {string} - HTML разметка с результатами поиска в виде табов
  */
 function renderSearchResults(response) {
   if (!response.results || !Array.isArray(response.results) || response.results.length === 0) {
@@ -1114,10 +1114,33 @@ function renderSearchResults(response) {
   }
 
   const results = response.results;
+  const tabsId = `search-tabs-${Date.now()}`; // Уникальный ID для набора табов
 
   let html = `<div class="search-results">`;
   html += `<div class="search-results-header">Найдено результатов: ${results.length}</div>`;
 
+  // Заголовки закладок
+  html += `<div class="search-tabs" id="${tabsId}">`;
+  results.forEach((result, index) => {
+    const relevance = result.relevance || {};
+    const percent = relevance.percent || 0;
+
+    // Определяем класс релевантности для цветового кодирования
+    let relevanceClass = "low";
+    if (percent >= 80) relevanceClass = "high";
+    else if (percent >= 60) relevanceClass = "medium";
+
+    const activeClass = index === 0 ? "active" : "";
+
+    html += `<div class="search-tab ${activeClass} ${relevanceClass}" data-tab-index="${index}" onclick="window.switchSearchTab('${tabsId}', ${index})">`;
+    html += `<span class="tab-number">#${index + 1}</span>`;
+    html += `<span class="tab-relevance">${percent}%</span>`;
+    html += `</div>`;
+  });
+  html += `</div>`; // search-tabs
+
+  // Содержимое закладок
+  html += `<div class="search-tabs-content">`;
   results.forEach((result, index) => {
     const relevance = result.relevance || {};
     const metadata = result.metadata || {};
@@ -1127,14 +1150,16 @@ function renderSearchResults(response) {
     const percent = relevance.percent || 0;
     const score = relevance.score?.toFixed(3) || "0.000";
 
-    // Определяем класс релевантности для цветового кодирования
+    // Определяем класс релевантности
     let relevanceClass = "low";
     if (percent >= 80) relevanceClass = "high";
     else if (percent >= 60) relevanceClass = "medium";
 
-    html += `<div class="search-result-card">`;
+    const activeClass = index === 0 ? "active" : "";
 
-    // Заголовок карточки с релевантностью
+    html += `<div class="search-tab-panel ${activeClass}" data-panel-index="${index}">`;
+
+    // Заголовок с релевантностью
     html += `<div class="search-result-header">`;
     html += `<div class="search-result-number">Результат #${index + 1}</div>`;
     html += `<div class="search-result-relevance ${relevanceClass}">`;
@@ -1159,8 +1184,9 @@ function renderSearchResults(response) {
     // Текст результата
     html += `<div class="search-result-text">${text}</div>`;
 
-    html += `</div>`; // search-result-card
+    html += `</div>`; // search-tab-panel
   });
+  html += `</div>`; // search-tabs-content
 
   html += `</div>`; // search-results
 
