@@ -9,7 +9,7 @@ import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy, setUiBu
 import { updateChatTitleWithStats } from './actions.js';
 import { fetchSqlText, executeSqlViaApi, fetchQueryAnswer, clearQueryCache } from './api.js';
 import { getEncodedAdminToken } from './crypto.js';
-import { MAX_TABLE_COLS, MAX_TABLE_CELL_LENGTH, config } from './config.js';
+import { MAX_TABLE_COLS, MAX_TABLE_CELL_LENGTH, getSchemaBucket } from './config.js';
 import { ChartAnalyzer, ChartRenderer } from './chart.js';
 
 // ============================================================================
@@ -567,15 +567,23 @@ function renderMessagesInternal() {
       makeLinksOpenInNewTab(content);
 
       // Добавляем обработчики для кнопок скачивания файлов из GCS в текстовом содержимом
+      const currentBucket = getSchemaBucket(dbSchema);
       const downloadBtns = content.querySelectorAll('.download-btn');
-      downloadBtns.forEach(btn => {
-        btn.onclick = () => {
-          const filename = btn.getAttribute('data-filename');
-          if (filename) {
-            downloadFromGCS(config.GCS_BUCKET, filename);
-          }
-        };
-      });
+
+      if (!currentBucket) {
+        // Если bucket не настроен для схемы - удаляем кнопки скачивания
+        downloadBtns.forEach(btn => btn.remove());
+      } else {
+        // Добавляем обработчики клика
+        downloadBtns.forEach(btn => {
+          btn.onclick = () => {
+            const filename = btn.getAttribute('data-filename');
+            if (filename) {
+              downloadFromGCS(currentBucket, filename);
+            }
+          };
+        });
+      }
 
       collapsibleContent.appendChild(content);
     }
@@ -882,16 +890,24 @@ function renderMessagesInternal() {
       }
 
       // Обработчик для кнопок скачивания файлов из GCS
+      const currentBucket = getSchemaBucket(dbSchema);
       const downloadBtns = tblWrap.querySelectorAll('.download-btn');
-      downloadBtns.forEach(btn => {
-        btn.onclick = () => {
-          const filename = btn.getAttribute('data-filename');
-          if (filename) {
-            // Filename уже содержит префикс с номером закона
-            downloadFromGCS(config.GCS_BUCKET, filename);
-          }
-        };
-      });
+
+      if (!currentBucket) {
+        // Если bucket не настроен для схемы - удаляем кнопки скачивания
+        downloadBtns.forEach(btn => btn.remove());
+      } else {
+        // Добавляем обработчики клика
+        downloadBtns.forEach(btn => {
+          btn.onclick = () => {
+            const filename = btn.getAttribute('data-filename');
+            if (filename) {
+              // Filename уже содержит префикс с номером закона
+              downloadFromGCS(currentBucket, filename);
+            }
+          };
+        });
+      }
     }
 
     // Добавляем placeholder если сообщение свернуто

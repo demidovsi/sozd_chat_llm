@@ -20,10 +20,11 @@ export const MAX_TABLE_CELL_LENGTH = 200; // Максимальная длина
 export const MAX_CARD_TEXT_LENGTH = 500; // Максимальная длина текста в карточках
 
 // НОВАЯ СТРУКТУРА: Режимы работы, привязанные к схемам БД
-// Каждая схема имеет свой набор режимов с собственными URL
+// Каждая схема имеет свой набор режимов с собственными URL и bucket для GCS
 export const SCHEMA_MODES = {
   sozd: {
     label: "СОЗД",
+    bucket: "sozd-laws-file", // GCS bucket для этой схемы
     modes: {
       sql: {
         id: "sql",
@@ -47,6 +48,7 @@ export const SCHEMA_MODES = {
   },
   lib: {
     label: "Гаазе",
+    bucket: null, // Нет bucket для этой схемы
     modes: {
       sql: {
         id: "sql",
@@ -70,6 +72,7 @@ export const SCHEMA_MODES = {
   },
   family: {
     label: "Семья",
+    bucket: null, // Нет bucket для этой схемы
     modes: {
       sql: {
         id: "sql",
@@ -93,6 +96,7 @@ export const SCHEMA_MODES = {
   },
   urban: {
     label: "Игра",
+    bucket: null, // Нет bucket для этой схемы
     modes: {
       sql: {
         id: "sql",
@@ -116,6 +120,7 @@ export const SCHEMA_MODES = {
   },
   eco: {
     label: "ГЕО-ЭКО",
+    bucket: null, // Нет bucket для этой схемы
     modes: {
       sql: {
         id: "sql",
@@ -139,6 +144,7 @@ export const SCHEMA_MODES = {
   },
   gen: {
     label: "ЕВГЕНИЯ",
+    bucket: null, // Нет bucket для этой схемы
     modes: {
       sql: {
         id: "sql",
@@ -162,6 +168,7 @@ export const SCHEMA_MODES = {
   },
   ohi: {
     label: "Наш дом Израиль",
+    bucket: null, // Нет bucket для этой схемы
     modes: {
       sql: {
         id: "sql",
@@ -215,6 +222,15 @@ export function getModesForSchema(schemaValue) {
  */
 export function getModeConfig(schemaValue, modeId) {
   return SCHEMA_MODES[schemaValue]?.modes?.[modeId] || null;
+}
+
+/**
+ * Получить GCS bucket для схемы
+ * @param {string} schemaValue - Идентификатор схемы
+ * @returns {string|null} - Название bucket или null
+ */
+export function getSchemaBucket(schemaValue) {
+  return SCHEMA_MODES[schemaValue]?.bucket || null;
 }
 
 // СТАРЫЕ СТРУКТУРЫ (закомментированы для обратной совместимости)
