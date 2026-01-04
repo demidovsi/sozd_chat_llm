@@ -31,7 +31,7 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "",
+        endpoint: "v2/execute",
         method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
@@ -55,7 +55,7 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "",
+        endpoint: "v2/execute",
         method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
@@ -79,7 +79,7 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "",
+        endpoint: "v2/execute",
         method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
@@ -103,7 +103,7 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "",
+        endpoint: "v2/execute",
         method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
@@ -127,7 +127,7 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "",
+        endpoint: "v2/execute",
         method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
@@ -151,7 +151,7 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "",
+        endpoint: "v2/execute",
         method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
@@ -175,7 +175,7 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "",
+        endpoint: "v2/execute",
         method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
