@@ -1961,3 +1961,144 @@
     width: 100%;
   }
 }
+
+/* ============================================================================
+   Стили для результатов векторного поиска (Search Results)
+   ============================================================================ */
+
+.search-results {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.search-results-header {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  padding: 10px 14px;
+  background: rgba(34, 197, 94, 0.08);
+  border-left: 4px solid var(--primary);
+  border-radius: 6px;
+}
+
+.search-result-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 14px 16px;
+  transition: all 0.2s ease;
+}
+
+.search-result-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(34, 197, 94, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.search-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-result-number {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.search-result-relevance {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.search-result-relevance.high {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.search-result-relevance.medium {
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+}
+
+.search-result-relevance.low {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.relevance-percent {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.search-result-relevance.high .relevance-percent {
+  color: #22c55e;
+}
+
+.search-result-relevance.medium .relevance-percent {
+  color: #eab308;
+}
+
+.search-result-relevance.low .relevance-percent {
+  color: #ef4444;
+}
+
+.relevance-score {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.search-result-metadata {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.metadata-item {
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.metadata-item strong {
+  color: var(--blue);
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.search-result-text {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Темная тема */
+[data-theme="dark"] .search-result-metadata {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Светлая тема */
+[data-theme="light"] .search-result-metadata {
+  background: rgba(0, 0, 0, 0.03);
+}

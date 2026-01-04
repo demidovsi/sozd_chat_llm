@@ -1104,6 +1104,70 @@ function scrollToAssistantMessage(messageId) {
 }
 
 /**
+ * Рендерит результаты векторного поиска из custom API
+ * @param {Object} response - Ответ от API с массивом results
+ * @returns {string} - HTML разметка с результатами поиска
+ */
+function renderSearchResults(response) {
+  if (!response.results || !Array.isArray(response.results) || response.results.length === 0) {
+    return "Результаты не найдены";
+  }
+
+  const results = response.results;
+
+  let html = `<div class="search-results">`;
+  html += `<div class="search-results-header">Найдено результатов: ${results.length}</div>`;
+
+  results.forEach((result, index) => {
+    const relevance = result.relevance || {};
+    const metadata = result.metadata || {};
+    const text = result.text || "";
+    const chunkInfo = result.chunk_info || {};
+
+    const percent = relevance.percent || 0;
+    const score = relevance.score?.toFixed(3) || "0.000";
+
+    // Определяем класс релевантности для цветового кодирования
+    let relevanceClass = "low";
+    if (percent >= 80) relevanceClass = "high";
+    else if (percent >= 60) relevanceClass = "medium";
+
+    html += `<div class="search-result-card">`;
+
+    // Заголовок карточки с релевантностью
+    html += `<div class="search-result-header">`;
+    html += `<div class="search-result-number">Результат #${index + 1}</div>`;
+    html += `<div class="search-result-relevance ${relevanceClass}">`;
+    html += `<span class="relevance-percent">${percent}%</span>`;
+    html += `<span class="relevance-score">(${score})</span>`;
+    html += `</div>`;
+    html += `</div>`;
+
+    // Метаданные
+    html += `<div class="search-result-metadata">`;
+    if (metadata.archive_name) {
+      html += `<div class="metadata-item"><strong>Архив:</strong> ${metadata.archive_name}</div>`;
+    }
+    if (metadata.meeting_date) {
+      html += `<div class="metadata-item"><strong>Дата:</strong> ${metadata.meeting_date}</div>`;
+    }
+    if (chunkInfo.chunk_index !== undefined && chunkInfo.total_chunks !== undefined) {
+      html += `<div class="metadata-item"><strong>Фрагмент:</strong> ${chunkInfo.chunk_index + 1} из ${chunkInfo.total_chunks}</div>`;
+    }
+    html += `</div>`;
+
+    // Текст результата
+    html += `<div class="search-result-text">${text}</div>`;
+
+    html += `</div>`; // search-result-card
+  });
+
+  html += `</div>`; // search-results
+
+  return html;
+}
+
+/**
  * Обрабатывает запрос пользователя и генерирует ответ ассистента
  *
  * Процесс работы:
@@ -1290,11 +1354,17 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
     }
     // ========== ДРУГИЕ РЕЖИМЫ (Custom API и т.д.) ==========
     else {
-      // Для других режимов - просто отображаем ответ
+      // Для других режимов - отображаем ответ
       if (response && typeof response === "object") {
-        // Пробуем разные поля в ответе
-        const answerText = response.answer || response.text || response.response || JSON.stringify(response, null, 2);
-        assistantMsg.content = answerText;
+        // Проверяем, есть ли массив results (векторный поиск)
+        if (response.results && Array.isArray(response.results) && response.results.length > 0) {
+          // Используем специальный рендеринг для результатов поиска
+          assistantMsg.content = renderSearchResults(response);
+        } else {
+          // Пробуем разные поля в ответе
+          const answerText = response.answer || response.text || response.response || JSON.stringify(response, null, 2);
+          assistantMsg.content = answerText;
+        }
       } else if (typeof response === "string") {
         assistantMsg.content = response;
       } else {
