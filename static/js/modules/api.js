@@ -268,10 +268,18 @@ export async function fetchQueryAnswer(userText, { signal } = {}) {
       fetchOptions.body = JSON.stringify(requestBody);
     }
 
+    alert('00000');
+    console.log('=== Детали запроса ===');
+    console.log('URL:', requestUrl.toString());
+    console.log('Method:', httpMethod);
+    console.log('Mode:', mode.id);
+    console.log('Request Body:', requestBody);
+    console.log('Fetch Options:', fetchOptions);
     const res = await fetch(requestUrl.toString(), fetchOptions);
-    
+    alert('1111');
     clearTimeout(timeoutId);
     
+      alert(res.ok);
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`HTTP ${res.status}: ${text}`);
@@ -287,6 +295,8 @@ export async function fetchQueryAnswer(userText, { signal } = {}) {
     return data;
   } catch (err) {
     clearTimeout(timeoutId);
+    console.error('Ошибка fetch:', err);
+    alert('Ошибка: ' + err.message);
     if (err.name === 'AbortError') {
       throw err;
     }
