@@ -31,8 +31,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "v2/execute",
-        method: "PUT",
+        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -55,8 +55,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "v2/execute",
-        method: "PUT",
+        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -79,8 +79,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "v2/execute",
-        method: "PUT",
+        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -103,8 +103,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "v2/execute",
-        method: "PUT",
+        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -127,8 +127,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "v2/execute",
-        method: "PUT",
+        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -151,8 +151,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "v2/execute",
-        method: "PUT",
+        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -175,8 +175,8 @@ export const SCHEMA_MODES = {
         label: "",
         icon: "🗄️",
         url: config.URL_rest,
-        endpoint: "v2/execute",
-        method: "PUT",
+        endpoint: "", // SQL использует два отдельных endpoint: v1/sql/text (GET) и v2/execute (PUT)
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {

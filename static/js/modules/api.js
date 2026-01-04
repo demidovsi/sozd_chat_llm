@@ -6,7 +6,8 @@ import { config } from './config.js';
 import { restSessionId, setRestSessionId, dbSchema, queryMode, getCurrentMode } from './state.js';
 
 export async function fetchSqlText(userText, { signal } = {}) {
-  const url = config.URL_rest + "sql/text";
+  // SQL text generation always uses v1/sql/text endpoint with GET method
+  const url = config.URL_rest + "v1/sql/text";
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 90000);
@@ -35,28 +36,19 @@ export async function fetchSqlText(userText, { signal } = {}) {
     requestBody.db_schema = dbSchema;
   }
 
-  // Получаем HTTP метод из конфигурации текущего режима
-  const mode = getCurrentMode();
-  const httpMethod = mode?.method || "POST";
+  // SQL text generation always uses GET method
+  const httpMethod = "GET";
 
   // Для GET запросов добавляем параметры в URL
-  if (httpMethod === "GET") {
-    Object.keys(requestBody).forEach(key => {
-      requestUrl.searchParams.append(key, requestBody[key]);
-    });
-  }
+  Object.keys(requestBody).forEach(key => {
+    requestUrl.searchParams.append(key, requestBody[key]);
+  });
 
   try {
     const fetchOptions = {
       method: httpMethod,
       signal: controller.signal
     };
-
-    // Для POST добавляем тело запроса
-    if (httpMethod === "POST") {
-      fetchOptions.headers = { "Content-Type": "application/json" };
-      fetchOptions.body = JSON.stringify(requestBody);
-    }
 
     const res = await fetch(requestUrl.toString(), fetchOptions);
 
