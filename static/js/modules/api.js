@@ -2,7 +2,7 @@
  * API вызовы к бэкенду
  */
 
-import { config, QUERY_MODES } from './config.js';
+import { config } from './config.js';
 import { restSessionId, setRestSessionId, dbSchema, queryMode, getCurrentMode } from './state.js';
 
 export async function fetchSqlText(userText, { signal } = {}) {
@@ -188,36 +188,40 @@ export async function clearQueryCache(userConditions, schema) {
  */
 export async function fetchQueryAnswer(userText, { signal } = {}) {
   const mode = getCurrentMode();
-  
+
+  if (!mode) {
+    throw new Error(`Invalid mode configuration for schema ${dbSchema}, mode ${queryMode}`);
+  }
+
   // Для SQL режима используем существующий fetchSqlText
   if (mode.id === 'sql') {
     return await fetchSqlText(userText, { signal });
   }
-  
+
   // Для других режимов - универсальный запрос
   const url = mode.url + mode.endpoint;
-  
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 90000);
-  
+
   if (signal) {
     signal.addEventListener('abort', () => controller.abort());
   }
-  
+
   const requestUrl = new URL(url);
-  
+
   const requestBody = {
     question: userText,
     user_text: userText
   };
-  
+
   // Добавляем session_id если есть
   if (restSessionId) {
     requestBody.session_id = restSessionId;
   }
-  
-  // Добавляем db_schema если режим использует схемы
-  if (mode.useSchemas && dbSchema) {
+
+  // Добавляем db_schema (всегда отправляем схему)
+  if (dbSchema) {
     requestBody.db_schema = dbSchema;
   }
   

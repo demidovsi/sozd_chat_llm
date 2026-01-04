@@ -9,7 +9,7 @@ import { renderAll, renderChatList, renderMessages, fakeStreamAnswer, setElement
 import { newChat, clearMessages, exportJSON, toggleAllMessages, updateToggleAllButton, getLastUserMessage } from './modules/actions.js';
 import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy, setOverlayText } from './modules/ui.js';
 import { VoiceInput } from './modules/voice.js';
-import { config, DB_SCHEMAS, QUERY_MODES } from './modules/config.js';
+import { config, getModesForSchema, getModeConfig } from './modules/config.js';
 import { getApiVersion, clearApiCache, clearSchemaCache, clearQueryCache } from './modules/api.js';
 import { getCurrentUser, getAvailableSchemasWithLabels, logout, isAdmin } from './modules/auth.js';
 import * as admin from './modules/admin.js';
@@ -310,9 +310,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   initTheme(themeSelect, themeToggleBtn);
 
   /** ---------- Query Mode Tabs ---------- **/
-  if (queryModeTabsEl) {
-    // Создаём вкладки для каждого режима
-    Object.values(QUERY_MODES).forEach(mode => {
+  /**
+   * Функция для динамического создания кнопок режимов для текущей схемы
+   */
+  function renderModeTabs() {
+    if (!queryModeTabsEl) return;
+
+    // Очищаем существующие кнопки
+    queryModeTabsEl.innerHTML = '';
+
+    // Получаем доступные режимы для текущей схемы
+    const availableModes = getModesForSchema(dbSchema);
+
+    // Создаём кнопки для каждого режима
+    Object.values(availableModes).forEach(mode => {
       const tab = document.createElement('button');
       tab.className = 'mode-tab';
       tab.dataset.mode = mode.id;
@@ -330,7 +341,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       tab.appendChild(label);
       queryModeTabsEl.appendChild(tab);
 
-      // Обработчик клика по вкладке
+      // Обработчик клика на режим
       tab.addEventListener('click', () => {
         const newMode = mode.id;
         if (newMode === queryMode) return; // Уже активен
@@ -343,19 +354,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           t.classList.toggle('active', t.dataset.mode === newMode);
         });
 
-        // Показываем/скрываем выбор схемы в зависимости от режима
-        const modeConfig = QUERY_MODES[newMode];
-        if (dbSchemaSelect) {
-          dbSchemaSelect.style.display = modeConfig.useSchemas ? 'block' : 'none';
-        }
-
-        // Ищем чаты для нового режима (и текущей схемы если режим использует схемы)
-        let modeChats;
-        if (modeConfig.useSchemas) {
-          modeChats = state.chats.filter(c => c.mode === newMode && c.schema === dbSchema);
-        } else {
-          modeChats = state.chats.filter(c => c.mode === newMode);
-        }
+        // Ищем чаты для нового режима и текущей схемы
+        const modeChats = state.chats.filter(c =>
+          c.mode === newMode && c.schema === dbSchema
+        );
 
         if (modeChats.length > 0) {
           // Переключаемся на первый чат нового режима
@@ -378,13 +380,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     queryModeTabsEl.querySelectorAll('.mode-tab').forEach(tab => {
       tab.classList.toggle('active', tab.dataset.mode === queryMode);
     });
-
-    // Показываем/скрываем выбор схемы в зависимости от текущего режима
-    const currentModeConfig = getCurrentMode();
-    if (dbSchemaSelect) {
-      dbSchemaSelect.style.display = currentModeConfig.useSchemas ? 'block' : 'none';
-    }
   }
+
+  // Инициализируем кнопки режимов для текущей схемы
+  renderModeTabs();
 
   /** ---------- DB Schema Select ---------- **/
   if (dbSchemaSelect) {
@@ -417,16 +416,32 @@ document.addEventListener("DOMContentLoaded", async () => {
       setDbSchema(newSchema);
       console.log(`DB Schema changed to: ${newSchema}`);
 
-      // Ищем чаты для новой схемы и текущего режима
-      const schemaChats = state.chats.filter(c => c.schema === newSchema && c.mode === queryMode);
+      // Проверяем, существует ли текущий режим для новой схемы
+      const availableModes = getModesForSchema(newSchema);
+      let targetMode = queryMode;
+
+      if (!availableModes[queryMode]) {
+        // Текущий режим недоступен для новой схемы - выбираем первый доступный
+        targetMode = Object.keys(availableModes)[0] || 'sql';
+        setQueryMode(targetMode);
+        console.log(`Mode changed to ${targetMode} (was unavailable for new schema)`);
+      }
+
+      // КРИТИЧНО: Пересоздаем кнопки режимов для новой схемы
+      renderModeTabs();
+
+      // Ищем чаты для новой схемы и текущего (или обновленного) режима
+      const schemaChats = state.chats.filter(c =>
+        c.schema === newSchema && c.mode === targetMode
+      );
 
       if (schemaChats.length > 0) {
         // Переключаемся на первый чат новой схемы
         state.activeChatId = schemaChats[0].id;
         saveState();
       } else {
-        // Создаём новый чат для новой схемы и текущего режима
-        const newChat = createChat("New chat", newSchema, queryMode);
+        // Создаём новый чат для новой схемы и режима
+        const newChat = createChat("New chat", newSchema, targetMode);
         state.chats.push(newChat);
         state.activeChatId = newChat.id;
         saveState();

@@ -19,45 +19,218 @@ export const MAX_AXIS_LABEL_LENGTH = 20; // Максимальная длина 
 export const MAX_TABLE_CELL_LENGTH = 200; // Максимальная длина текста в ячейке таблицы
 export const MAX_CARD_TEXT_LENGTH = 500; // Максимальная длина текста в карточках
 
-// Режимы работы приложения
-export const QUERY_MODES = {
-  sql: {
-    id: "sql",
-    label: "",
-    icon: "🗄️",
-    url: config.URL_rest,
-    endpoint: "", // Используется существующий endpoint
-    useSchemas: true, // Требуется выбор схемы БД
-    description: "Генерация SQL запросов и работа с базой данных"
+// НОВАЯ СТРУКТУРА: Режимы работы, привязанные к схемам БД
+// Каждая схема имеет свой набор режимов с собственными URL
+export const SCHEMA_MODES = {
+  sozd: {
+    label: "СОЗД",
+    modes: {
+      sql: {
+        id: "sql",
+        label: "",
+        icon: "🗄️",
+        url: config.URL_rest,
+        endpoint: "",
+        description: "Генерация SQL запросов и работа с базой данных"
+      },
+      custom: {
+        id: "custom",
+        label: "",
+        icon: "🤖",
+        url: "http://127.0.0.1:5000/",
+        endpoint: "/api/search",
+        description: "Запросы к кастомному API с выбором схемы"
+      }
+    }
   },
-  custom: {
-    id: "custom",
-    label: "",
-    icon: "🤖",
-    url: "http://другой-url/", // TODO: Заменить на реальный URL
-    endpoint: "/api/query", // TODO: Заменить на реальный endpoint
-    useSchemas: true, // Тоже требуется выбор схемы
-    description: "Запросы к кастомному API с выбором схемы"
+  lib: {
+    label: "Гаазе",
+    modes: {
+      sql: {
+        id: "sql",
+        label: "",
+        icon: "🗄️",
+        url: config.URL_rest,
+        endpoint: "",
+        description: "Генерация SQL запросов и работа с базой данных"
+      },
+      custom: {
+        id: "custom",
+        label: "",
+        icon: "🤖",
+        url: "http://127.0.0.1:5000/",
+        endpoint: "/api/search",
+        description: "Запросы к кастомному API с выбором схемы"
+      }
+    }
+  },
+  family: {
+    label: "Семья",
+    modes: {
+      sql: {
+        id: "sql",
+        label: "",
+        icon: "🗄️",
+        url: config.URL_rest,
+        endpoint: "",
+        description: "Генерация SQL запросов и работа с базой данных"
+      },
+      custom: {
+        id: "custom",
+        label: "",
+        icon: "🤖",
+        url: "http://127.0.0.1:5000/",
+        endpoint: "/api/search",
+        description: "Запросы к кастомному API с выбором схемы"
+      }
+    }
+  },
+  urban: {
+    label: "Игра",
+    modes: {
+      sql: {
+        id: "sql",
+        label: "",
+        icon: "🗄️",
+        url: config.URL_rest,
+        endpoint: "",
+        description: "Генерация SQL запросов и работа с базой данных"
+      },
+      custom: {
+        id: "custom",
+        label: "",
+        icon: "🤖",
+        url: "http://127.0.0.1:5000/",
+        endpoint: "/api/search",
+        description: "Запросы к кастомному API с выбором схемы"
+      }
+    }
+  },
+  eco: {
+    label: "ГЕО-ЭКО",
+    modes: {
+      sql: {
+        id: "sql",
+        label: "",
+        icon: "🗄️",
+        url: config.URL_rest,
+        endpoint: "",
+        description: "Генерация SQL запросов и работа с базой данных"
+      },
+      custom: {
+        id: "custom",
+        label: "",
+        icon: "🤖",
+        url: "http://127.0.0.1:5000/",
+        endpoint: "/api/search",
+        description: "Запросы к кастомному API с выбором схемы"
+      }
+    }
+  },
+  gen: {
+    label: "ЕВГЕНИЯ",
+    modes: {
+      sql: {
+        id: "sql",
+        label: "",
+        icon: "🗄️",
+        url: config.URL_rest,
+        endpoint: "",
+        description: "Генерация SQL запросов и работа с базой данных"
+      },
+      custom: {
+        id: "custom",
+        label: "",
+        icon: "🤖",
+        url: "http://127.0.0.1:5000/",
+        endpoint: "/api/search",
+        description: "Запросы к кастомному API с выбором схемы"
+      }
+    }
+  },
+  ohi: {
+    label: "Наш дом Израиль",
+    modes: {
+      sql: {
+        id: "sql",
+        label: "",
+        icon: "🗄️",
+        url: config.URL_rest,
+        endpoint: "",
+        description: "Генерация SQL запросов и работа с базой данных"
+      },
+      custom: {
+        id: "custom",
+        label: "",
+        icon: "🤖",
+        url: "http://127.0.0.1:5000/",
+        endpoint: "/api/search",
+        description: "Запросы к кастомному API с выбором схемы"
+      }
+    }
   }
-  // Можно добавить третий режим без схемы:
-  // future: {
-  //   id: "future",
-  //   label: "Будущий режим",
-  //   icon: "🚀",
-  //   url: "http://еще-один-url/",
-  //   endpoint: "/api/ask",
-  //   useSchemas: false, // НЕ требуется схема
-  //   description: "Режим без привязки к схеме БД"
-  // }
 };
 
-// Доступные схемы БД
-export const DB_SCHEMAS = [
-  { value: "sozd", label: "СОЗД" },
-  { value: "lib", label: "Гаазе" },
-  { value: "family", label: "Семья" },
-  { value: "urban", label: "Игра" },
-  { value: "eco", label: "ГЕО-ЭКО" },
-  { value: "gen", label: "ЕВГЕНИЯ" },
-  { value: "ohi", label: "Наш дом Израиль" }
-];
+// Вспомогательные функции для работы со схемами и режимами
+
+/**
+ * Получить список всех доступных схем
+ * @returns {Array<{value: string, label: string}>}
+ */
+export function getSchemaList() {
+  return Object.keys(SCHEMA_MODES).map(value => ({
+    value,
+    label: SCHEMA_MODES[value].label
+  }));
+}
+
+/**
+ * Получить режимы для конкретной схемы
+ * @param {string} schemaValue - Идентификатор схемы (например, "sozd")
+ * @returns {Object} - Объект с режимами или пустой объект
+ */
+export function getModesForSchema(schemaValue) {
+  return SCHEMA_MODES[schemaValue]?.modes || {};
+}
+
+/**
+ * Получить конфигурацию конкретного режима для схемы
+ * @param {string} schemaValue - Идентификатор схемы
+ * @param {string} modeId - Идентификатор режима (например, "sql")
+ * @returns {Object|null} - Конфигурация режима или null
+ */
+export function getModeConfig(schemaValue, modeId) {
+  return SCHEMA_MODES[schemaValue]?.modes?.[modeId] || null;
+}
+
+// СТАРЫЕ СТРУКТУРЫ (закомментированы для обратной совместимости)
+// export const QUERY_MODES = {
+//   sql: {
+//     id: "sql",
+//     label: "",
+//     icon: "🗄️",
+//     url: config.URL_rest,
+//     endpoint: "",
+//     useSchemas: true,
+//     description: "Генерация SQL запросов и работа с базой данных"
+//   },
+//   custom: {
+//     id: "custom",
+//     label: "",
+//     icon: "🤖",
+//     url: "http://127.0.0.1:5000/",
+//     endpoint: "/api/search",
+//     useSchemas: true,
+//     description: "Запросы к кастомному API с выбором схемы"
+//   }
+// };
+
+// export const DB_SCHEMAS = [
+//   { value: "sozd", label: "СОЗД" },
+//   { value: "lib", label: "Гаазе" },
+//   { value: "family", label: "Семья" },
+//   { value: "urban", label: "Игра" },
+//   { value: "eco", label: "ГЕО-ЭКО" },
+//   { value: "gen", label: "ЕВГЕНИЯ" },
+//   { value: "ohi", label: "Наш дом Израиль" }
+// ];

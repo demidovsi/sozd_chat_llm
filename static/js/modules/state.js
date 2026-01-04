@@ -2,7 +2,7 @@
  * Управление состоянием приложения
  */
 
-import { LS_KEY, DB_SCHEMA_KEY, DB_SCHEMAS, QUERY_MODE_KEY, QUERY_MODES } from './config.js';
+import { LS_KEY, DB_SCHEMA_KEY, QUERY_MODE_KEY, getSchemaList, getModesForSchema, getModeConfig } from './config.js';
 
 export let state = null;
 export let currentAbortController = null;
@@ -56,7 +56,13 @@ export function setQueryMode(value) {
 }
 
 export function getCurrentMode() {
-  return QUERY_MODES[queryMode] || QUERY_MODES.sql;
+  const modeConfig = getModeConfig(dbSchema, queryMode);
+  if (modeConfig) return modeConfig;
+
+  // Fallback: если режим не найден, берем первый доступный режим для схемы
+  const availableModes = getModesForSchema(dbSchema);
+  const firstModeId = Object.keys(availableModes)[0];
+  return availableModes[firstModeId] || null;
 }
 
 export function loadState() {
@@ -67,26 +73,31 @@ export function loadState() {
     console.log(`Session ID loaded from localStorage: ${savedSessionId}`);
   }
 
-  // Загружаем query_mode из localStorage
-  const savedQueryMode = localStorage.getItem(QUERY_MODE_KEY);
-  if (savedQueryMode && QUERY_MODES[savedQueryMode]) {
-    queryMode = savedQueryMode;
-    console.log(`Query Mode loaded from localStorage: ${savedQueryMode}`);
-  } else {
-    // По умолчанию SQL режим
-    queryMode = "sql";
-    localStorage.setItem(QUERY_MODE_KEY, queryMode);
-  }
-
   // Загружаем db_schema из localStorage
   const savedDbSchema = localStorage.getItem(DB_SCHEMA_KEY);
+  const schemaList = getSchemaList();
+
   if (savedDbSchema) {
     dbSchema = savedDbSchema;
     console.log(`DB Schema loaded from localStorage: ${savedDbSchema}`);
   } else {
     // По умолчанию первая схема (sozd)
-    dbSchema = DB_SCHEMAS[0].value;
+    dbSchema = schemaList[0]?.value || 'sozd';
     localStorage.setItem(DB_SCHEMA_KEY, dbSchema);
+  }
+
+  // Загружаем query_mode из localStorage
+  const savedQueryMode = localStorage.getItem(QUERY_MODE_KEY);
+  const availableModes = getModesForSchema(dbSchema);
+
+  if (savedQueryMode && availableModes[savedQueryMode]) {
+    queryMode = savedQueryMode;
+    console.log(`Query Mode loaded from localStorage: ${savedQueryMode}`);
+  } else {
+    // По умолчанию первый доступный режим для схемы
+    queryMode = Object.keys(availableModes)[0] || "sql";
+    localStorage.setItem(QUERY_MODE_KEY, queryMode);
+    console.log(`Query Mode set to default: ${queryMode}`);
   }
 
   const raw = localStorage.getItem(LS_KEY);
@@ -94,14 +105,32 @@ export function loadState() {
     try {
       const data = JSON.parse(raw);
 
-      // Миграция: добавляем schema и mode к старым чатам
+      // Миграция: добавляем schema и mode к старым чатам, валидируем комбинации
       if (data.chats && Array.isArray(data.chats)) {
         data.chats.forEach(chat => {
+          // Добавляем schema, если отсутствует
           if (!chat.schema) {
-            chat.schema = DB_SCHEMAS[0].value; // Присваиваем первую схему старым чатам
+            chat.schema = schemaList[0]?.value || 'sozd';
           }
+          // Добавляем mode, если отсутствует
           if (!chat.mode) {
-            chat.mode = "sql"; // Присваиваем SQL режим старым чатам
+            chat.mode = "sql";
+          }
+
+          // Валидация: проверяем, что режим доступен для схемы
+          const chatAvailableModes = getModesForSchema(chat.schema);
+          if (!chatAvailableModes[chat.mode]) {
+            // Режим недоступен для этой схемы
+            const firstMode = Object.keys(chatAvailableModes)[0];
+            if (firstMode) {
+              console.warn(`Chat ${chat.id}: migrating mode from ${chat.mode} to ${firstMode} for schema ${chat.schema}`);
+              chat.mode = firstMode;
+            } else {
+              // Схема не существует - мигрируем на sozd:sql
+              console.warn(`Chat ${chat.id}: schema ${chat.schema} not found, migrating to sozd:sql`);
+              chat.schema = 'sozd';
+              chat.mode = 'sql';
+            }
           }
         });
       }
@@ -122,20 +151,30 @@ export function saveState(next = state) {
 }
 
 export function createChat(title, schema = null, mode = null) {
+  const currentSchema = schema || dbSchema;
   const currentMode = mode || queryMode;
-  const modeConfig = QUERY_MODES[currentMode];
+  const modeConfig = getModeConfig(currentSchema, currentMode);
+
+  // Fallback на первый доступный режим, если конфигурация не найдена
+  const fallbackModeConfig = modeConfig || (() => {
+    const availableModes = getModesForSchema(currentSchema);
+    const firstModeId = Object.keys(availableModes)[0];
+    return availableModes[firstModeId];
+  })();
 
   return {
     id: crypto.randomUUID(),
     title,
-    schema: schema || dbSchema, // Привязываем чат к схеме БД
+    schema: currentSchema, // Привязываем чат к схеме БД
     mode: currentMode, // Привязываем чат к режиму работы
     createdAt: Date.now(),
     messages: [
       {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: `Привет! Режим: ${modeConfig.label}. ${modeConfig.description}`
+        content: fallbackModeConfig
+          ? `Привет! Режим: ${fallbackModeConfig.label}. ${fallbackModeConfig.description}`
+          : "Привет!"
       }
     ]
   };
