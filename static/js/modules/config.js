@@ -32,7 +32,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
-        method: "GET",
+        method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -56,7 +56,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
-        method: "GET",
+        method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -80,7 +80,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
-        method: "GET",
+        method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -104,7 +104,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
-        method: "GET",
+        method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -128,7 +128,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
-        method: "GET",
+        method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -152,7 +152,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
-        method: "GET",
+        method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -176,7 +176,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
-        method: "GET",
+        method: "PUT",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
