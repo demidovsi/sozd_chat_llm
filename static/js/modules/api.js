@@ -227,10 +227,14 @@ export async function fetchQueryAnswer(userText, { signal } = {}) {
 
   const requestUrl = new URL(url);
 
-  const requestBody = {
-    question: userText,
-    user_text: userText
-  };
+  // Для custom режима используем ключ "query"
+  const requestBody = {};
+  if (mode.id === 'custom') {
+    requestBody.query = userText;
+  } else {
+    requestBody.question = userText;
+    requestBody.user_text = userText;
+  }
 
   // Добавляем session_id если есть
   if (restSessionId) {
