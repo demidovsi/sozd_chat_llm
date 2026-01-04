@@ -35,13 +35,30 @@ export async function fetchSqlText(userText, { signal } = {}) {
     requestBody.db_schema = dbSchema;
   }
 
-  try {
-    const res = await fetch(requestUrl.toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-      signal: controller.signal
+  // Получаем HTTP метод из конфигурации текущего режима
+  const mode = getCurrentMode();
+  const httpMethod = mode?.method || "POST";
+
+  // Для GET запросов добавляем параметры в URL
+  if (httpMethod === "GET") {
+    Object.keys(requestBody).forEach(key => {
+      requestUrl.searchParams.append(key, requestBody[key]);
     });
+  }
+
+  try {
+    const fetchOptions = {
+      method: httpMethod,
+      signal: controller.signal
+    };
+
+    // Для POST добавляем тело запроса
+    if (httpMethod === "POST") {
+      fetchOptions.headers = { "Content-Type": "application/json" };
+      fetchOptions.body = JSON.stringify(requestBody);
+    }
+
+    const res = await fetch(requestUrl.toString(), fetchOptions);
 
     clearTimeout(timeoutId);
 
@@ -224,14 +241,30 @@ export async function fetchQueryAnswer(userText, { signal } = {}) {
   if (dbSchema) {
     requestBody.db_schema = dbSchema;
   }
-  
-  try {
-    const res = await fetch(requestUrl.toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-      signal: controller.signal
+
+  // Используем HTTP метод из конфигурации (GET или POST)
+  const httpMethod = mode.method || "POST";
+
+  // Для GET запросов добавляем параметры в URL
+  if (httpMethod === "GET") {
+    Object.keys(requestBody).forEach(key => {
+      requestUrl.searchParams.append(key, requestBody[key]);
     });
+  }
+
+  try {
+    const fetchOptions = {
+      method: httpMethod,
+      signal: controller.signal
+    };
+
+    // Для POST добавляем тело запроса
+    if (httpMethod === "POST") {
+      fetchOptions.headers = { "Content-Type": "application/json" };
+      fetchOptions.body = JSON.stringify(requestBody);
+    }
+
+    const res = await fetch(requestUrl.toString(), fetchOptions);
     
     clearTimeout(timeoutId);
     

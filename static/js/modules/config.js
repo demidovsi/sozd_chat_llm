@@ -31,6 +31,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -39,6 +40,7 @@ export const SCHEMA_MODES = {
         icon: "🤖",
         url: "http://127.0.0.1:5000/",
         endpoint: "/api/search",
+        method: "POST",
         description: "Запросы к кастомному API с выбором схемы"
       }
     }
@@ -52,6 +54,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -60,6 +63,7 @@ export const SCHEMA_MODES = {
         icon: "🤖",
         url: "http://127.0.0.1:5000/",
         endpoint: "/api/search",
+        method: "POST",
         description: "Запросы к кастомному API с выбором схемы"
       }
     }
@@ -73,6 +77,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -81,6 +86,7 @@ export const SCHEMA_MODES = {
         icon: "🤖",
         url: "http://127.0.0.1:5000/",
         endpoint: "/api/search",
+        method: "POST",
         description: "Запросы к кастомному API с выбором схемы"
       }
     }
@@ -94,6 +100,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -102,6 +109,7 @@ export const SCHEMA_MODES = {
         icon: "🤖",
         url: "http://127.0.0.1:5000/",
         endpoint: "/api/search",
+        method: "POST",
         description: "Запросы к кастомному API с выбором схемы"
       }
     }
@@ -115,6 +123,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -123,6 +132,7 @@ export const SCHEMA_MODES = {
         icon: "🤖",
         url: "http://127.0.0.1:5000/",
         endpoint: "/api/search",
+        method: "POST",
         description: "Запросы к кастомному API с выбором схемы"
       }
     }
@@ -136,6 +146,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -144,6 +155,7 @@ export const SCHEMA_MODES = {
         icon: "🤖",
         url: "http://127.0.0.1:5000/",
         endpoint: "/api/search",
+        method: "POST",
         description: "Запросы к кастомному API с выбором схемы"
       }
     }
@@ -157,6 +169,7 @@ export const SCHEMA_MODES = {
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "",
+        method: "GET",
         description: "Генерация SQL запросов и работа с базой данных"
       },
       custom: {
@@ -165,6 +178,7 @@ export const SCHEMA_MODES = {
         icon: "🤖",
         url: "http://127.0.0.1:5000/",
         endpoint: "/api/search",
+        method: "POST",
         description: "Запросы к кастомному API с выбором схемы"
       }
     }
