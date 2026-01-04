@@ -9,7 +9,7 @@ import { renderAll, renderChatList, renderMessages, fakeStreamAnswer, setElement
 import { newChat, clearMessages, exportJSON, toggleAllMessages, updateToggleAllButton, getLastUserMessage } from './modules/actions.js';
 import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy, setOverlayText } from './modules/ui.js';
 import { VoiceInput } from './modules/voice.js';
-import { config, getModesForSchema, getModeConfig } from './modules/config.js';
+import { config, SCHEMA_MODES, getModesForSchema, getModeConfig } from './modules/config.js';
 import { getApiVersion, clearApiCache, clearSchemaCache, clearQueryCache } from './modules/api.js';
 import { getCurrentUser, getAvailableSchemasWithLabels, logout, isAdmin } from './modules/auth.js';
 import * as admin from './modules/admin.js';
@@ -315,12 +315,19 @@ document.addEventListener("DOMContentLoaded", async () => {
    */
   function renderModeTabs() {
     if (!queryModeTabsEl) return;
+    if (!dbSchema) return; // Защита от вызова до инициализации схемы
 
     // Очищаем существующие кнопки
     queryModeTabsEl.innerHTML = '';
 
     // Получаем доступные режимы для текущей схемы
     const availableModes = getModesForSchema(dbSchema);
+
+    // Если нет доступных режимов для схемы, выходим
+    if (!availableModes || Object.keys(availableModes).length === 0) {
+      console.warn(`No modes available for schema: ${dbSchema}`);
+      return;
+    }
 
     // Создаём кнопки для каждого режима
     Object.values(availableModes).forEach(mode => {
@@ -382,19 +389,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Инициализируем кнопки режимов для текущей схемы
-  renderModeTabs();
-
   /** ---------- DB Schema Select ---------- **/
   if (dbSchemaSelect) {
     // Загружаем доступные схемы для текущего пользователя
     const availableSchemas = await getAvailableSchemasWithLabels();
 
+    // Фильтруем только схемы, которые есть в SCHEMA_MODES
+    const filteredSchemas = availableSchemas.filter(s =>
+      SCHEMA_MODES[s.value] !== undefined
+    );
+
     // Очищаем существующие опции
     dbSchemaSelect.innerHTML = '';
 
     // Заполняем select только доступными схемами
-    availableSchemas.forEach(schema => {
+    filteredSchemas.forEach(schema => {
       const option = document.createElement('option');
       option.value = schema.value;
       option.textContent = schema.label;
@@ -402,13 +411,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     // Устанавливаем текущее значение если оно доступно
-    if (dbSchema && availableSchemas.some(s => s.value === dbSchema)) {
+    if (dbSchema && filteredSchemas.some(s => s.value === dbSchema)) {
       dbSchemaSelect.value = dbSchema;
-    } else if (availableSchemas.length > 0) {
+    } else if (filteredSchemas.length > 0) {
       // Если текущая схема недоступна, выбираем первую доступную
-      setDbSchema(availableSchemas[0].value);
-      dbSchemaSelect.value = availableSchemas[0].value;
+      setDbSchema(filteredSchemas[0].value);
+      dbSchemaSelect.value = filteredSchemas[0].value;
     }
+
+    // Инициализируем кнопки режимов для текущей схемы (после загрузки схем)
+    renderModeTabs();
 
     // Обработчик изменения схемы
     dbSchemaSelect.addEventListener('change', (e) => {
