@@ -5,7 +5,7 @@
 export const config = {
   kirill: "wqzDi8OVw43DjcOOwoTCncKZwpM=",
   URL: "https://159.223.0.234:5001/",
-  URL_rest: "http://127.0.0.1:5050/",
+  URL_rest: "https://159.223.0.234:5051/",
   GCS_BUCKET: "sozd-laws-file" // Имя корневого bucket в Google Cloud Storage
 };
 
@@ -28,7 +28,7 @@ export const SCHEMA_MODES = {
     modes: {
       sql: {
         id: "sql",
-        label: "",
+        label: "SQL",
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
@@ -37,11 +37,12 @@ export const SCHEMA_MODES = {
       },
       custom: {
         id: "custom",
-        label: "",
+        label: "Custom",
         icon: "🤖",
         url: "http://127.0.0.1:5000",
         endpoint: "/api/search",
         method: "POST",
+        bucket: "sozd-transcripts", // GCS bucket для скачивания архивов
         description: "Запросы к кастомному API с выбором схемы"
       }
     }
@@ -52,22 +53,23 @@ export const SCHEMA_MODES = {
     modes: {
       sql: {
         id: "sql",
-        label: "",
+        label: "SQL",
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-      custom: {
-        id: "custom",
-        label: "",
-        icon: "🤖",
-        url: "http://127.0.0.1:5000/",
-        endpoint: "/api/search",
-        method: "POST",
-        description: "Запросы к кастомному API с выбором схемы"
-      }
+//      custom: {
+//        id: "custom",
+//        label: "",
+//        icon: "🤖",
+//        url: "http://127.0.0.1:5000/",
+//        endpoint: "/api/search",
+//        method: "POST",
+//        bucket: null, // Нет bucket для этой схемы
+//        description: "Запросы к кастомному API с выбором схемы"
+//      }
     }
   },
   family: {
@@ -76,22 +78,23 @@ export const SCHEMA_MODES = {
     modes: {
       sql: {
         id: "sql",
-        label: "",
+        label: "SQL",
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-      custom: {
-        id: "custom",
-        label: "",
-        icon: "🤖",
-        url: "http://127.0.0.1:5000/",
-        endpoint: "/api/search",
-        method: "POST",
-        description: "Запросы к кастомному API с выбором схемы"
-      }
+//      custom: {
+//        id: "custom",
+//        label: "",
+//        icon: "🤖",
+//        url: "http://127.0.0.1:5000/",
+//        endpoint: "/api/search",
+//        method: "POST",
+//        bucket: null, // Нет bucket для этой схемы
+//        description: "Запросы к кастомному API с выбором схемы"
+//      }
     }
   },
   urban: {
@@ -100,22 +103,23 @@ export const SCHEMA_MODES = {
     modes: {
       sql: {
         id: "sql",
-        label: "",
+        label: "SQL",
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-      custom: {
-        id: "custom",
-        label: "",
-        icon: "🤖",
-        url: "http://127.0.0.1:5000/",
-        endpoint: "/api/search",
-        method: "POST",
-        description: "Запросы к кастомному API с выбором схемы"
-      }
+//      custom: {
+//        id: "custom",
+//        label: "",
+//        icon: "🤖",
+//        url: "http://127.0.0.1:5000/",
+//        endpoint: "/api/search",
+//        method: "POST",
+//        bucket: null, // Нет bucket для этой схемы
+//        description: "Запросы к кастомному API с выбором схемы"
+//      }
     }
   },
   eco: {
@@ -124,22 +128,23 @@ export const SCHEMA_MODES = {
     modes: {
       sql: {
         id: "sql",
-        label: "",
+        label: "SQL",
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-      custom: {
-        id: "custom",
-        label: "",
-        icon: "🤖",
-        url: "http://127.0.0.1:5000/",
-        endpoint: "/api/search",
-        method: "POST",
-        description: "Запросы к кастомному API с выбором схемы"
-      }
+//      custom: {
+//        id: "custom",
+//        label: "",
+//        icon: "🤖",
+//        url: "http://127.0.0.1:5000/",
+//        endpoint: "/api/search",
+//        method: "POST",
+//        bucket: null, // Нет bucket для этой схемы
+//        description: "Запросы к кастомному API с выбором схемы"
+//      }
     }
   },
   gen: {
@@ -148,22 +153,23 @@ export const SCHEMA_MODES = {
     modes: {
       sql: {
         id: "sql",
-        label: "",
+        label: "SQL",
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-      custom: {
-        id: "custom",
-        label: "",
-        icon: "🤖",
-        url: "http://127.0.0.1:5000/",
-        endpoint: "/api/search",
-        method: "POST",
-        description: "Запросы к кастомному API с выбором схемы"
-      }
+//      custom: {
+//        id: "custom",
+//        label: "",
+//        icon: "🤖",
+//        url: "http://127.0.0.1:5000/",
+//        endpoint: "/api/search",
+//        method: "POST",
+//        bucket: null, // Нет bucket для этой схемы
+//        description: "Запросы к кастомному API с выбором схемы"
+//      }
     }
   },
   ohi: {
@@ -172,22 +178,23 @@ export const SCHEMA_MODES = {
     modes: {
       sql: {
         id: "sql",
-        label: "",
+        label: "SQL",
         icon: "🗄️",
         url: config.URL_rest,
         endpoint: "", // SQL использует два отдельных endpoint: sql/text (POST) и v2/execute (PUT)
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-      custom: {
-        id: "custom",
-        label: "",
-        icon: "🤖",
-        url: "http://127.0.0.1:5000/",
-        endpoint: "/api/search",
-        method: "POST",
-        description: "Запросы к кастомному API с выбором схемы"
-      }
+//      custom: {
+//        id: "custom",
+//        label: "",
+//        icon: "🤖",
+//        url: "http://127.0.0.1:5000/",
+//        endpoint: "/api/search",
+//        method: "POST",
+//        bucket: null, // Нет bucket для этой схемы
+//        description: "Запросы к кастомному API с выбором схемы"
+//      }
     }
   }
 };
@@ -231,6 +238,16 @@ export function getModeConfig(schemaValue, modeId) {
  */
 export function getSchemaBucket(schemaValue) {
   return SCHEMA_MODES[schemaValue]?.bucket || null;
+}
+
+/**
+ * Получить GCS bucket для конкретного режима
+ * @param {string} schemaValue - Идентификатор схемы
+ * @param {string} modeId - Идентификатор режима
+ * @returns {string|null} - Название bucket или null
+ */
+export function getModeBucket(schemaValue, modeId) {
+  return SCHEMA_MODES[schemaValue]?.modes?.[modeId]?.bucket || null;
 }
 
 // СТАРЫЕ СТРУКТУРЫ (закомментированы для обратной совместимости)

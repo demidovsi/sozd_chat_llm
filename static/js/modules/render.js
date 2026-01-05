@@ -9,7 +9,7 @@ import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy, setUiBu
 import { updateChatTitleWithStats } from './actions.js';
 import { fetchSqlText, executeSqlViaApi, fetchQueryAnswer, clearQueryCache } from './api.js';
 import { getEncodedAdminToken } from './crypto.js';
-import { MAX_TABLE_COLS, MAX_TABLE_CELL_LENGTH, getSchemaBucket } from './config.js';
+import { MAX_TABLE_COLS, MAX_TABLE_CELL_LENGTH, getSchemaBucket, getModeBucket } from './config.js';
 import { ChartAnalyzer, ChartRenderer } from './chart.js';
 
 // ============================================================================
@@ -1174,19 +1174,10 @@ function renderSearchResults(response) {
 
     html += `<div class="search-tab-panel ${activeClass}" data-panel-index="${index}">`;
 
-    // Заголовок с релевантностью
-    html += `<div class="search-result-header">`;
-    html += `<div class="search-result-number">Результат #${index + 1}</div>`;
-    html += `<div class="search-result-relevance ${relevanceClass}">`;
-    html += `<span class="relevance-percent">${percent}%</span>`;
-    html += `<span class="relevance-score">(${score})</span>`;
-    html += `</div>`;
-    html += `</div>`;
-
     // Метаданные
     html += `<div class="search-result-metadata">`;
     if (metadata.archive_name) {
-      html += `<div class="metadata-item"><strong>Архив:</strong> ${metadata.archive_name}</div>`;
+      html += `<div class="metadata-item"><strong>Архив:</strong> <span class="archive-link" data-archive="${metadata.archive_name}">${metadata.archive_name}</span></div>`;
     }
     if (metadata.meeting_date) {
       html += `<div class="metadata-item"><strong>Дата:</strong> ${metadata.meeting_date}</div>`;

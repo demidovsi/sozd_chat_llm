@@ -132,11 +132,13 @@ export function makeLinksOpenInNewTab(root) {
  * Скачивает файл из Google Cloud Storage через API endpoint
  * @param {string} bucketName - Имя bucket (не используется, т.к. bucket указан на бэкенде)
  * @param {string} filename - Имя файла (уже содержит префикс с номером закона)
+ * @note Если файл является .7z архивом, сервер автоматически разархивирует его
+ *       и вернет с правильным именем в заголовке Content-Disposition
  */
 export async function downloadFromGCS(bucketName, filename) {
   try {
     // Используем API endpoint для безопасного скачивания
-    const apiUrl = `/api/download?filename=${encodeURIComponent(filename)}`;
+    const apiUrl = `/api/download?filename=${encodeURIComponent(filename)}&bucket_name=${encodeURIComponent(bucketName)}`;
 
     console.log(`Downloading file via API: ${apiUrl}`);
 
@@ -154,10 +156,21 @@ export async function downloadFromGCS(bucketName, filename) {
     // Создаем URL для blob
     const blobUrl = URL.createObjectURL(blob);
 
+    // Извлекаем правильное имя файла из заголовка Content-Disposition
+    let downloadFilename = filename.split('/').pop(); // fallback - исходное имя без пути
+    const contentDisposition = response.headers.get('Content-Disposition');
+    if (contentDisposition) {
+      // Извлекаем имя файла из заголовка (формат: attachment; filename="file.txt" или filename*=UTF-8''file.txt)
+      const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d+'')?([^"';]+)['"]?/i);
+      if (filenameMatch && filenameMatch[1]) {
+        downloadFilename = decodeURIComponent(filenameMatch[1]);
+      }
+    }
+
     // Создаем ссылку и кликаем для скачивания
     const link = document.createElement('a');
     link.href = blobUrl;
-    link.download = filename.split('/').pop(); // Используем только имя файла без пути
+    link.download = downloadFilename; // Используем правильное имя файла из ответа сервера
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -165,7 +178,7 @@ export async function downloadFromGCS(bucketName, filename) {
     // Освобождаем память
     URL.revokeObjectURL(blobUrl);
 
-    console.log(`File download completed: ${filename}`);
+    console.log(`File download completed: ${downloadFilename} (requested: ${filename})`);
   } catch (error) {
     console.error('Error downloading file from GCS:', error);
     alert(`Ошибка при скачивании файла: ${error.message}`);

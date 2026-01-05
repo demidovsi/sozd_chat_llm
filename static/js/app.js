@@ -2,14 +2,14 @@
  * Главный файл приложения (модульная версия)
  */
 
-import { el, normalizeUserMessage } from './modules/utils.js';
+import { el, normalizeUserMessage, downloadFromGCS } from './modules/utils.js';
 import { state, setState, loadState, saveState, getActiveChat, setCurrentAbortController, setIsGenerating, setLastUserMessageCache, currentAbortController, isGenerating, lastUserMessageCache, dbSchema, setDbSchema, createChat, queryMode, setQueryMode, getCurrentMode } from './modules/state.js';
 import { initTheme } from './modules/theme.js';
 import { renderAll, renderChatList, renderMessages, fakeStreamAnswer, setElements } from './modules/render.js';
 import { newChat, clearMessages, exportJSON, toggleAllMessages, updateToggleAllButton, getLastUserMessage } from './modules/actions.js';
 import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy, setOverlayText } from './modules/ui.js';
 import { VoiceInput } from './modules/voice.js';
-import { config, SCHEMA_MODES, getSchemaList, getModesForSchema, getModeConfig } from './modules/config.js';
+import { config, SCHEMA_MODES, getSchemaList, getModesForSchema, getModeConfig, getModeBucket } from './modules/config.js';
 import { getApiVersion, clearApiCache, clearSchemaCache, clearQueryCache } from './modules/api.js';
 import { getCurrentUser, getAvailableSchemasWithLabels, logout, isAdmin } from './modules/auth.js';
 import * as admin from './modules/admin.js';
@@ -340,17 +340,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!queryModeTabsEl) return;
     if (!dbSchema) return; // Защита от вызова до инициализации схемы
 
-    // Очищаем существующие кнопки
-    queryModeTabsEl.innerHTML = '';
-
     // Получаем доступные режимы для текущей схемы
     const availableModes = getModesForSchema(dbSchema);
 
-    // Если нет доступных режимов для схемы, выходим
-    if (!availableModes || Object.keys(availableModes).length === 0) {
-      console.warn(`No modes available for schema: ${dbSchema}`);
+    // Очищаем существующие кнопки
+    queryModeTabsEl.innerHTML = '';
+
+    // Если нет доступных режимов или только один режим - не показываем кнопки
+    if (!availableModes || Object.keys(availableModes).length <= 1) {
+      queryModeTabsEl.style.display = 'none';
+      if (Object.keys(availableModes).length === 0) {
+        console.warn(`No modes available for schema: ${dbSchema}`);
+      } else {
+        console.log(`Only one mode available for schema ${dbSchema}, hiding mode tabs`);
+      }
       return;
     }
+
+    // Показываем контейнер, если режимов больше одного
+    queryModeTabsEl.style.display = 'flex';
 
     // Создаём кнопки для каждого режима
     Object.values(availableModes).forEach(mode => {
@@ -863,6 +871,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.addEventListener('beforeunload', () => {
     if (voiceInput) {
       voiceInput.destroy();
+    }
+  });
+
+  // Глобальный обработчик кликов на архивы (делегирование событий)
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('archive-link')) {
+      const archiveName = e.target.getAttribute('data-archive');
+      if (archiveName) {
+        // Получаем bucket из custom режима текущей схемы
+        const bucket = getModeBucket(dbSchema, 'custom');
+        if (bucket) {
+          console.log(`Downloading archive: ${archiveName} from bucket: ${bucket}`);
+          downloadFromGCS(bucket, archiveName);
+        } else {
+          alert('Bucket не настроен для этой схемы');
+        }
+      }
     }
   });
 

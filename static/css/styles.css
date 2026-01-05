@@ -63,8 +63,8 @@
     .app {
       height: 100vh;
       display: grid;
-      grid-template-columns: minmax(250px, 320px) auto minmax(600px, 1fr);
-      min-width: 920px; /* Минимальная ширина приложения (250px + 70px + 600px) */
+      grid-template-columns: minmax(250px, 320px) minmax(600px, 1fr);
+      min-width: 850px; /* Минимальная ширина приложения (250px + 600px) */
     }
 
     .main {
@@ -88,18 +88,7 @@
       min-width: 250px; /* Гарантируем минимальную ширину, чтобы sidebar не исчезал */
     }
 
-    /* ===== MODE PANEL ===== */
-
-    .mode-panel {
-      border-right: 1px solid var(--border);
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
-      padding: 14px 10px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-width: 50px;
-    }
+    /* ===== MODE PANEL ===== (УДАЛЕНА - теперь кнопки режимов в sidebar) */
 
     .sidebar-top {
       display: flex;
@@ -121,10 +110,52 @@
       display: flex;
       gap: 8px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .sidebar-buttons .btn-primary {
       flex: 1;
+      min-width: 100px;
+    }
+
+    /* Inline mode tabs - горизонтальные кнопки режимов */
+    .mode-tabs-inline {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .mode-tabs-inline .mode-tab {
+      width: 32px;
+      height: 32px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .mode-tabs-inline .mode-tab:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border);
+    }
+
+    .mode-tabs-inline .mode-tab.active {
+      background: rgba(59, 130, 246, 0.15) !important;
+      border-color: #3b82f6 !important;
+    }
+
+    .mode-tabs-inline .mode-tab-icon {
+      font-size: 16px;
+    }
+
+    .mode-tabs-inline .mode-tab-label {
+      display: none; /* Скрываем текст, показываем только иконки */
     }
 
     .tools-menu-container {
@@ -1538,74 +1569,9 @@
 }
 
 /* ============================================================================
-   Вкладки режимов работы (Query Mode Tabs)
+   Вкладки режимов работы (Query Mode Tabs) - СТАРЫЕ СТИЛИ УДАЛЕНЫ
+   Теперь используются inline стили в .mode-tabs-inline (см. выше в секции TOOLS MENU)
    ============================================================================ */
-
-.mode-tabs {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0;
-  margin: 0;
-}
-
-.mode-tab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 2px;
-  background: var(--bg);
-  border: 2px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--muted);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-  flex-shrink: 0;
-}
-
-.mode-tab:hover {
-  border-color: var(--primary);
-  background: var(--hover);
-  color: var(--fg);
-}
-
-.mode-tab.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
-  _box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-.mode-tab-icon {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.mode-tab-label {
-  display: none; /* Скрываем label */
-}
-
-/* Адаптивность для мобильных */
-@media (max-width: 768px) {
-  .mode-tabs {
-    gap: 4px;
-  }
-
-  .mode-tab {
-    width: 30px;
-    height: 30px;
-    padding: 2px;
-  }
-
-  .mode-tab-icon {
-    font-size: 16px;
-  }
-}
 
 /* === Admin Panel Styles === */
 
@@ -2115,6 +2081,19 @@
 .relevance-percent {
   font-size: 16px;
   font-weight: 800;
+}
+
+/* Стили для кликабельных ссылок на архивы */
+.archive-link {
+  color: #4a9eff;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.archive-link:hover {
+  color: #3182ce;
+  text-decoration: none;
 }
 
 .search-result-relevance.high .relevance-percent {
