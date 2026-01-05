@@ -562,7 +562,12 @@ function renderMessagesInternal() {
     if (m.content && shouldRenderContent) {
       const content = document.createElement('div');
       content.className = 'content';
-      content.innerHTML = renderMarkdownSafe(m.content);
+      // Если это результаты поиска, регенерируем HTML с актуальными состояниями панелей
+      if (m.searchResponse && m.searchResponse.results) {
+        content.innerHTML = renderSearchResults(m.searchResponse, m);
+      } else {
+        content.innerHTML = renderMarkdownSafe(m.content);
+      }
       makeLinksOpenInNewTab(content);
 
       // Добавляем обработчики для кнопок скачивания файлов из GCS в текстовом содержимом
@@ -1119,17 +1124,62 @@ function scrollToAssistantMessage(messageId) {
 }
 
 /**
+ * Извлекает дату из имени файла архива
+ * @param {string} filename - Имя файла
+ * @returns {string|null} - Извлеченная дата в формате YYYY-MM-DD или DD.MM.YYYY, или null
+ */
+function extractDateFromFilename(filename) {
+  if (!filename) return null;
+
+  // Паттерны для поиска дат в разных форматах
+  const patterns = [
+    /(\d{4})-(\d{2})-(\d{2})/,        // YYYY-MM-DD
+    /(\d{4})\.(\d{2})\.(\d{2})/,      // YYYY.MM.DD
+    /(\d{4})_(\d{2})_(\d{2})/,        // YYYY_MM_DD
+    /(\d{2})\.(\d{2})\.(\d{4})/,      // DD.MM.YYYY
+    /(\d{2})-(\d{2})-(\d{4})/,        // DD-MM-YYYY
+    /(\d{2})_(\d{2})_(\d{4})/,        // DD_MM_YYYY
+    /(\d{8})/,                         // YYYYMMDD или DDMMYYYY
+  ];
+
+  for (const pattern of patterns) {
+    const match = filename.match(pattern);
+    if (match) {
+      if (match[0].length === 8 && !match[1]) {
+        // YYYYMMDD формат
+        const dateStr = match[0];
+        const year = dateStr.substring(0, 4);
+        const month = dateStr.substring(4, 6);
+        const day = dateStr.substring(6, 8);
+        return `${day}.${month}.${year}`;
+      } else if (match[3] && match[3].length === 4) {
+        // DD.MM.YYYY или DD-MM-YYYY формат
+        return `${match[1]}.${match[2]}.${match[3]}`;
+      } else if (match[1] && match[1].length === 4) {
+        // YYYY-MM-DD или YYYY.MM.DD формат
+        return `${match[3]}.${match[2]}.${match[1]}`;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Рендерит результаты векторного поиска из custom API в виде закладок
  * @param {Object} response - Ответ от API с массивом results
+ * @param {Object} message - Объект сообщения для доступа к сохраненным состояниям панелей
  * @returns {string} - HTML разметка с результатами поиска в виде табов
  */
-function renderSearchResults(response) {
+function renderSearchResults(response, message = null) {
   if (!response.results || !Array.isArray(response.results) || response.results.length === 0) {
     return "Результаты не найдены";
   }
 
   const results = response.results;
   const tabsId = `search-tabs-${Date.now()}`; // Уникальный ID для набора табов
+  const messageId = message ? message.id : '';
+  const savedStates = message && message.searchPanelStates ? message.searchPanelStates : {};
 
   let html = `<div class="search-results">`;
   html += `<div class="search-results-header">Найдено результатов: ${results.length}</div>`;
@@ -1159,7 +1209,8 @@ function renderSearchResults(response) {
   results.forEach((result, index) => {
     const relevance = result.relevance || {};
     const metadata = result.metadata || {};
-    const text = result.text || "";
+    const text = (result.text || "").replace(/\\n/g, '\n');  // Заменяем \n на реальные переносы
+    const stage = (metadata.stage || "").replace(/\\n/g, '\n');  // Заменяем \n на реальные переносы
     const chunkInfo = result.chunk_info || {};
 
     const percent = relevance.percent || 0;
@@ -1171,24 +1222,64 @@ function renderSearchResults(response) {
     else if (percent >= 60) relevanceClass = "medium";
 
     const activeClass = index === 0 ? "active" : "";
+    const hasStage = stage && typeof stage === 'string' && stage.trim().length > 0;
+
+    // Отладочное логирование
+    if (index === 0) {
+      console.log('Result stage check:', {
+        hasStage,
+        stageType: typeof stage,
+        stageLength: stage ? stage.length : 0,
+        stageTrimmed: stage ? stage.trim().length : 0
+      });
+    }
 
     html += `<div class="search-tab-panel ${activeClass}" data-panel-index="${index}">`;
 
     // Метаданные
     html += `<div class="search-result-metadata">`;
     if (metadata.archive_name) {
-      html += `<div class="metadata-item"><strong>Архив:</strong> <span class="archive-link" data-archive="${metadata.archive_name}">${metadata.archive_name}</span></div>`;
+      html += `<div class="metadata-item">
+        <strong>Архив:</strong> <span class="archive-link" data-archive="${metadata.archive_name}">${metadata.archive_name}</span>`;
+
+      // Переключатель text/stage на той же строке, если stage не пустой
+      if (hasStage) {
+        const activeContent = savedStates[index] || 'text';
+        const textActive = activeContent === 'text' ? 'active' : '';
+        const stageActive = activeContent === 'stage' ? 'active' : '';
+        html += `<div class="content-switcher" style="display: inline-flex; margin-left: 12px;">
+          <button class="switcher-btn ${textActive}" data-content-type="text" onclick="window.switchContent('${messageId}', ${index}, 'text')">Text</button>
+          <button class="switcher-btn ${stageActive}" data-content-type="stage" onclick="window.switchContent('${messageId}', ${index}, 'stage')">Stage</button>
+        </div>`;
+      }
+
+      html += `</div>`;
     }
-    if (metadata.meeting_date) {
-      html += `<div class="metadata-item"><strong>Дата:</strong> ${metadata.meeting_date}</div>`;
+
+    // Дата: сначала пытаемся взять meeting_date, если пусто - извлекаем из имени архива
+    let displayDate = metadata.meeting_date;
+    if (!displayDate && metadata.archive_name) {
+      displayDate = extractDateFromFilename(metadata.archive_name);
+    }
+    if (displayDate) {
+      html += `<div class="metadata-item"><strong>Дата:</strong> ${displayDate}</div>`;
     }
     if (chunkInfo.chunk_index !== undefined && chunkInfo.total_chunks !== undefined) {
       html += `<div class="metadata-item"><strong>Фрагмент:</strong> ${chunkInfo.chunk_index + 1} из ${chunkInfo.total_chunks}</div>`;
     }
+
     html += `</div>`;
 
-    // Текст результата
-    html += `<div class="search-result-text">${text}</div>`;
+    // Контейнер для текста с возможностью переключения
+    if (hasStage) {
+      const activeContent = savedStates[index] || 'text';
+      const textDisplay = activeContent === 'text' ? 'block' : 'none';
+      const stageDisplay = activeContent === 'stage' ? 'block' : 'none';
+      html += `<div class="search-result-text" data-content-type="text" data-panel-index="${index}" style="display: ${textDisplay};">${text}</div>`;
+      html += `<div class="search-result-text" data-content-type="stage" data-panel-index="${index}" style="display: ${stageDisplay};">${stage}</div>`;
+    } else {
+      html += `<div class="search-result-text">${text}</div>`;
+    }
 
     html += `</div>`; // search-tab-panel
   });
@@ -1390,8 +1481,10 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
       if (response && typeof response === "object") {
         // Проверяем, есть ли массив results (векторный поиск)
         if (response.results && Array.isArray(response.results) && response.results.length > 0) {
+          // Сохраняем исходный response для возможности регенерации HTML
+          assistantMsg.searchResponse = response;
           // Используем специальный рендеринг для результатов поиска
-          assistantMsg.content = renderSearchResults(response);
+          assistantMsg.content = renderSearchResults(response, assistantMsg);
         } else {
           // Пробуем разные поля в ответе
           const answerText = response.answer || response.text || response.response || JSON.stringify(response, null, 2);

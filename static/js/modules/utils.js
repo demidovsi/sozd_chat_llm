@@ -184,3 +184,113 @@ export async function downloadFromGCS(bucketName, filename) {
     alert(`Ошибка при скачивании файла: ${error.message}`);
   }
 }
+
+/**
+ * Переключает отображение между text и stage в результатах поиска
+ * @param {string|number} messageIdOrIndex - ID сообщения (новый формат) или индекс панели (старый формат)
+ * @param {number|string} panelIndexOrContentType - Индекс панели (новый) или тип контента (старый)
+ * @param {string} contentType - Тип контента (только новый формат)
+ */
+window.switchContent = function(messageIdOrIndex, panelIndexOrContentType, contentType) {
+  console.log('=== switchContent called ===');
+  console.log('Args:', messageIdOrIndex, panelIndexOrContentType, contentType);
+
+  // Определяем формат вызова (старый или новый)
+  let messageId, panelIndex, actualContentType;
+
+  if (contentType === undefined) {
+    // Старый формат: switchContent(panelIndex, contentType)
+    panelIndex = messageIdOrIndex;
+    actualContentType = panelIndexOrContentType;
+    // Находим сообщение по контексту (ищем в DOM)
+    const panel = document.querySelector(`.search-tab-panel[data-panel-index="${panelIndex}"]`);
+    if (!panel) {
+      console.error('Panel not found for old format!');
+      return;
+    }
+    const messageElement = panel.closest('.msg');
+    if (messageElement) {
+      messageId = messageElement.dataset.id;
+    }
+  } else {
+    // Новый формат: switchContent(messageId, panelIndex, contentType)
+    messageId = messageIdOrIndex;
+    panelIndex = panelIndexOrContentType;
+    actualContentType = contentType;
+  }
+
+  console.log('Parsed - messageId:', messageId, 'panelIndex:', panelIndex, 'contentType:', actualContentType);
+
+  // Находим сообщение в DOM
+  const messageElement = messageId ? document.querySelector(`.msg[data-id="${messageId}"]`) : null;
+  if (!messageElement) {
+    console.error('Message element not found!');
+    return;
+  }
+
+  // Находим все элементы контента для этой панели
+  const textElement = messageElement.querySelector(`.search-result-text[data-content-type="text"][data-panel-index="${panelIndex}"]`);
+  const stageElement = messageElement.querySelector(`.search-result-text[data-content-type="stage"][data-panel-index="${panelIndex}"]`);
+
+  console.log('textElement found:', !!textElement);
+  console.log('stageElement found:', !!stageElement);
+
+  if (!textElement || !stageElement) {
+    console.error('Content elements not found!');
+    return;
+  }
+
+  // Находим панель для поиска кнопок
+  const panel = messageElement.querySelector(`.search-tab-panel[data-panel-index="${panelIndex}"]`);
+  if (!panel) {
+    console.error('Panel not found for index:', panelIndex);
+    return;
+  }
+
+  // Находим кнопки
+  const textButton = panel.querySelector('.switcher-btn[data-content-type="text"]');
+  const stageButton = panel.querySelector('.switcher-btn[data-content-type="stage"]');
+
+  console.log('textButton found:', !!textButton);
+  console.log('stageButton found:', !!stageButton);
+
+  // Переключаем видимость
+  if (actualContentType === 'text') {
+    textElement.style.display = 'block';
+    stageElement.style.display = 'none';
+    if (textButton) {
+      textButton.classList.add('active');
+      if (stageButton) stageButton.classList.remove('active');
+    }
+    console.log('Switched to TEXT');
+  } else if (actualContentType === 'stage') {
+    textElement.style.display = 'none';
+    stageElement.style.display = 'block';
+    if (stageButton) {
+      stageButton.classList.add('active');
+      if (textButton) textButton.classList.remove('active');
+    }
+    console.log('Switched to STAGE');
+  }
+
+  // Сохраняем состояние в state (только если есть messageId)
+  if (messageId) {
+    // Используем динамический импорт для доступа к state
+    import('./state.js').then(({ getActiveChat, saveState }) => {
+      const chat = getActiveChat();
+      if (chat) {
+        const message = chat.messages.find(m => m.id === messageId);
+        if (message) {
+          if (!message.searchPanelStates) {
+            message.searchPanelStates = {};
+          }
+          message.searchPanelStates[panelIndex] = actualContentType;
+          saveState();
+          console.log('State saved:', message.searchPanelStates);
+        }
+      }
+    });
+  }
+
+  console.log('=== switchContent completed ===');
+}
