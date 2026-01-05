@@ -1180,9 +1180,23 @@ function renderSearchResults(response, message = null) {
   const tabsId = `search-tabs-${Date.now()}`; // Уникальный ID для набора табов
   const messageId = message ? message.id : '';
   const savedStates = message && message.searchPanelStates ? message.searchPanelStates : {};
+  const activeView = message && message.searchViewMode ? message.searchViewMode : 'analiz'; // По умолчанию analiz
+  const answer = response.answer || '';
 
   let html = `<div class="search-results">`;
-  html += `<div class="search-results-header">Найдено результатов: ${results.length}</div>`;
+
+  // Заголовок с переключателем embeddings/analiz
+  html += `<div class="search-results-header">
+    <span>Найдено результатов: ${results.length}</span>
+    <div class="view-switcher" style="display: inline-flex; margin-left: 16px;">
+      <button class="view-switcher-btn ${activeView === 'embeddings' ? 'active' : ''}" data-view="embeddings" onclick="window.switchSearchView('${messageId}', 'embeddings')">Embeddings</button>
+      <button class="view-switcher-btn ${activeView === 'analiz' ? 'active' : ''}" data-view="analiz" onclick="window.switchSearchView('${messageId}', 'analiz')">Analiz</button>
+    </div>
+  </div>`;
+
+  // Контейнер для embeddings (табы с результатами)
+  const embeddingsDisplay = activeView === 'embeddings' ? 'block' : 'none';
+  html += `<div class="embeddings-view" style="display: ${embeddingsDisplay};">`;
 
   // Заголовки закладок
   html += `<div class="search-tabs" id="${tabsId}">`;
@@ -1284,6 +1298,24 @@ function renderSearchResults(response, message = null) {
     html += `</div>`; // search-tab-panel
   });
   html += `</div>`; // search-tabs-content
+
+  html += `</div>`; // embeddings-view
+
+  // Контейнер для analiz (текст ответа в формате Markdown)
+  const analizDisplay = activeView === 'analiz' ? 'block' : 'none';
+  html += `<div class="analiz-view" style="display: ${analizDisplay};">`;
+  if (answer) {
+    // Рендерим Markdown, затем убираем пустые строки из HTML
+    let renderedHtml = renderMarkdownSafe(answer);
+    // Убираем пустые параграфы
+    renderedHtml = renderedHtml.replace(/<p>\s*<\/p>/g, '');
+    // Убираем множественные <br> (заменяем 2+ на 1)
+    renderedHtml = renderedHtml.replace(/(<br\s*\/?>[\s\n]*){2,}/gi, '<br>');
+    html += `<div class="analiz-content">${renderedHtml}</div>`;
+  } else {
+    html += `<div class="analiz-content" style="color: var(--muted-2); font-style: italic;">Нет данных для анализа</div>`;
+  }
+  html += `</div>`; // analiz-view
 
   html += `</div>`; // search-results
 

@@ -2136,6 +2136,86 @@
   margin-right: 6px;
 }
 
+/* Переключатель контента (text/stage) */
+.content-switcher {
+  display: inline-flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.switcher-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #aaa;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.switcher-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.switcher-btn.active {
+  background: #3b82f6;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Переключатель вида (embeddings/analiz) */
+.view-switcher {
+  display: inline-flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.view-switcher-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #aaa;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-switcher-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.view-switcher-btn.active {
+  background: #10b981;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Контейнер для analiz */
+.analiz-content {
+  padding: 16px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
 .search-result-text {
   color: var(--text);
   font-size: 14px;

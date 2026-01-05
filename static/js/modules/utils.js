@@ -294,3 +294,65 @@ window.switchContent = function(messageIdOrIndex, panelIndexOrContentType, conte
 
   console.log('=== switchContent completed ===');
 }
+
+/**
+ * Переключает отображение между embeddings и analiz в результатах поиска
+ * @param {string} messageId - ID сообщения
+ * @param {string} viewType - Тип вида ('embeddings' или 'analiz')
+ */
+window.switchSearchView = function(messageId, viewType) {
+  console.log('=== switchSearchView called ===');
+  console.log('messageId:', messageId, 'viewType:', viewType);
+
+  // Находим сообщение в DOM
+  const messageElement = messageId ? document.querySelector(`.msg[data-id="${messageId}"]`) : null;
+  if (!messageElement) {
+    console.error('Message element not found for switchSearchView!');
+    return;
+  }
+
+  // Находим контейнеры
+  const embeddingsView = messageElement.querySelector('.embeddings-view');
+  const analizView = messageElement.querySelector('.analiz-view');
+
+  if (!embeddingsView || !analizView) {
+    console.error('View containers not found!');
+    return;
+  }
+
+  // Находим кнопки
+  const embeddingsBtn = messageElement.querySelector('.view-switcher-btn[data-view="embeddings"]');
+  const analizBtn = messageElement.querySelector('.view-switcher-btn[data-view="analiz"]');
+
+  // Переключаем видимость
+  if (viewType === 'embeddings') {
+    embeddingsView.style.display = 'block';
+    analizView.style.display = 'none';
+    if (embeddingsBtn) embeddingsBtn.classList.add('active');
+    if (analizBtn) analizBtn.classList.remove('active');
+    console.log('Switched to EMBEDDINGS');
+  } else if (viewType === 'analiz') {
+    embeddingsView.style.display = 'none';
+    analizView.style.display = 'block';
+    if (analizBtn) analizBtn.classList.add('active');
+    if (embeddingsBtn) embeddingsBtn.classList.remove('active');
+    console.log('Switched to ANALIZ');
+  }
+
+  // Сохраняем состояние в state
+  if (messageId) {
+    import('./state.js').then(({ getActiveChat, saveState }) => {
+      const chat = getActiveChat();
+      if (chat) {
+        const message = chat.messages.find(m => m.id === messageId);
+        if (message) {
+          message.searchViewMode = viewType;
+          saveState();
+          console.log('View mode saved:', viewType);
+        }
+      }
+    });
+  }
+
+  console.log('=== switchSearchView completed ===');
+}
