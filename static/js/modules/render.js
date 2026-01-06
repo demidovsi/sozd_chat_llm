@@ -1182,6 +1182,7 @@ function renderSearchResults(response, message = null) {
   const savedStates = message && message.searchPanelStates ? message.searchPanelStates : {};
   const activeView = message && message.searchViewMode ? message.searchViewMode : 'analiz'; // По умолчанию analiz
   const answer = response.answer || '';
+  const embeddingUsage = response.embedding_usage || null;
 
   let html = `<div class="search-results">`;
 
@@ -1197,6 +1198,18 @@ function renderSearchResults(response, message = null) {
   // Контейнер для embeddings (табы с результатами)
   const embeddingsDisplay = activeView === 'embeddings' ? 'block' : 'none';
   html += `<div class="embeddings-view" style="display: ${embeddingsDisplay};">`;
+
+  // Стоимость embeddings (перед табами)
+  if (embeddingUsage && embeddingUsage.cost_usd !== undefined) {
+    const cost = embeddingUsage.cost_usd;
+    const tokens = embeddingUsage.tokens || 0;
+    const model = embeddingUsage.model || '';
+    html += `<div class="embedding-cost">
+      <span class="cost-label">Embedding cost:</span>
+      <span class="cost-value">${cost.toFixed(8)} USD</span>
+      <span class="cost-details">(${tokens} tokens, ${model})</span>
+    </div>`;
+  }
 
   // Заголовки закладок
   html += `<div class="search-tabs" id="${tabsId}">`;
