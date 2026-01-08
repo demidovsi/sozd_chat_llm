@@ -1985,9 +1985,13 @@
 
 .search-tab.active {
   background: var(--panel);
-  border-color: var(--border);
-  border-bottom: 1px solid var(--panel);
+  border: 2px solid #3b82f6;
+  border-radius: 6px;
   z-index: 1;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+  font-weight: 600;
+  bottom: 0;
+  margin-bottom: 2px;
 }
 
 /* Стили для заголовков закладок */
@@ -1995,6 +1999,19 @@
   font-size: 13px;
   font-weight: 700;
   color: var(--text-secondary);
+}
+
+.tab-date {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-2);
+  font-style: italic;
+}
+
+.tab-stage-indicator {
+  font-size: 14px;
+  opacity: 0.8;
+  cursor: help;
 }
 
 .tab-relevance {
@@ -2237,8 +2254,6 @@
   line-height: 1.4;
   white-space: normal;
   word-wrap: break-word;
-  max-height: 600px;
-  overflow-y: auto;
 }
 
 /* Компактные отступы для Markdown элементов */

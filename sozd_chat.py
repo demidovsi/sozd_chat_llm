@@ -17,6 +17,9 @@ from models import Database, User
 import auth_service
 from auth_middleware import admin_required, schema_access_required
 
+import mimetypes
+# import magic
+
 # Настройка логирования для Cloud Run
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,6 +65,24 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login_page'
+
+
+def determine_mimetype(filename, file_content=None):
+    """Определяет MIME-type комбинированным методом"""
+    # Сначала пробуем по расширению
+    mimetype, _ = mimetypes.guess_type(filename)
+
+    # Если не удалось определить по расширению и есть содержимое файла
+    # if not mimetype and file_content:
+    #     try:
+    #         mime = magic.Magic(mime=True)
+    #         mimetype = mime.from_buffer(file_content)
+    #     except:
+    #         pass
+
+    # Fallback
+    return mimetype or 'application/octet-stream'
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -356,11 +377,15 @@ def download_file():
     """Скачивание файла из Google Cloud Storage с поддержкой .7z архивов"""
     try:
         filename = request.args.get('filename')
-        logger.info(f"Download request for file: {filename}")
+        bucket_name = request.args.get('bucket_name', 'sozd-laws-file')
+        logger.info(f"Download request for file: {filename} bucket: {bucket_name}")
 
         if not filename:
             logger.error("Filename parameter is missing")
             return jsonify({"error": "Filename parameter is required"}), 400
+
+        # Сохраняем исходное имя файла для правильного определения download_name
+        original_filename = filename
 
         # Инициализация клиента GCS с service account
         gcs_creds_json = get_gcs_credentials_json()
@@ -378,7 +403,6 @@ def download_file():
         finally:
             os.unlink(temp_path)
 
-        bucket_name = 'sozd-laws-file'
         bucket = storage_client.bucket(bucket_name)
         logger.info(f"Accessing bucket: {bucket_name}")
 
@@ -407,6 +431,8 @@ def download_file():
                 return jsonify({"error": f"File not found: {filename}"}), 404
         else:
             logger.info(f"File found: {filename}")
+            if filename.lower().endswith('.7z'):
+                is_7z = True
 
         # Загрузка содержимого файла
         logger.info(f"Downloading file from GCS, size: {blob.size} bytes")
@@ -432,6 +458,7 @@ def download_file():
 
                 # Ищем разархивированный файл (должен быть один файл с оригинальным именем)
                 extracted_files = [f for f in os.listdir(temp_dir) if f != 'archive.7z']
+                logger.info(f"Extracted files in archive: {extracted_files}")
 
                 if not extracted_files:
                     logger.error("No files found in archive")
@@ -439,20 +466,51 @@ def download_file():
 
                 # Берем первый файл
                 extracted_file = os.path.join(temp_dir, extracted_files[0])
-                logger.info(f"Extracted file: {extracted_files[0]}")
+
+                # Проверяем, что это файл, а не директория
+                if os.path.isdir(extracted_file):
+                    logger.error(f"Extracted item is a directory: {extracted_files[0]}")
+                    # Ищем файлы внутри директории
+                    files_in_dir = []
+                    for root, dirs, files in os.walk(temp_dir):
+                        for file in files:
+                            if file != 'archive.7z':
+                                files_in_dir.append(os.path.join(root, file))
+
+                    if not files_in_dir:
+                        logger.error("No files found in archive subdirectories")
+                        return jsonify({"error": "No files found in archive"}), 500
+
+                    extracted_file = files_in_dir[0]
+                    logger.info(f"Using file from subdirectory: {extracted_file}")
+
+                logger.info(f"Extracted file path: {extracted_file}")
 
                 # Читаем содержимое
                 with open(extracted_file, 'rb') as f:
                     extracted_content = BytesIO(f.read())
 
-                download_name = filename.split('/')[-1]
-                logger.info(f"Sending extracted file: {download_name}")
+                # Определяем правильное имя для скачивания
+                extracted_filename = os.path.basename(extracted_file)
+
+                if original_filename.lower().endswith('.7z'):
+                    # Если запрашивался .7z файл, используем РЕАЛЬНОЕ имя из архива
+                    download_name = extracted_filename
+                    logger.info(f"Original: {original_filename}, Extracted: {extracted_filename}, Using: {download_name}")
+                else:
+                    # Если запрашивался обычный файл (которого не было), используем исходное имя
+                    download_name = original_filename.split('/')[-1]
+                    logger.info(f"Original: {original_filename} (non-archive), Using: {download_name}")
+
+                logger.info(f"Sending extracted file with name: {download_name}")
+
+                mimetype = determine_mimetype(download_name, extracted_content.getvalue())
 
                 return send_file(
                     extracted_content,
                     as_attachment=True,
                     download_name=download_name,
-                    mimetype='application/octet-stream'
+                    mimetype=mimetype
                 )
         else:
             # Обычный файл - отправляем как есть
@@ -472,4 +530,6 @@ def download_file():
 
 if __name__ == '__main__':
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    app.run(port=config.OWN_PORT, host=config.OWN_HOST)
+    # use_reloader=False отключает Flask reloader для совместимости с отладчиком PyCharm
+    # PyCharm использует свой собственный отладчик
+    app.run(port=config.OWN_PORT, host=config.OWN_HOST, debug=True, use_reloader=False)

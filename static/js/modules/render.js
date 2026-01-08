@@ -1124,45 +1124,54 @@ function scrollToAssistantMessage(messageId) {
 }
 
 /**
- * Извлекает дату из имени файла архива
- * @param {string} filename - Имя файла
- * @returns {string|null} - Извлеченная дата в формате YYYY-MM-DD или DD.MM.YYYY, или null
+ * Нормализует дату к формату YYYY-MM-DD
+ * @param {string} dateStr - Дата в любом формате
+ * @returns {string|null} - Дата в формате YYYY-MM-DD или null
  */
-function extractDateFromFilename(filename) {
-  if (!filename) return null;
+function normalizeDateToISO(dateStr) {
+  if (!dateStr) return null;
 
   // Паттерны для поиска дат в разных форматах
   const patterns = [
-    /(\d{4})-(\d{2})-(\d{2})/,        // YYYY-MM-DD
-    /(\d{4})\.(\d{2})\.(\d{2})/,      // YYYY.MM.DD
-    /(\d{4})_(\d{2})_(\d{2})/,        // YYYY_MM_DD
-    /(\d{2})\.(\d{2})\.(\d{4})/,      // DD.MM.YYYY
-    /(\d{2})-(\d{2})-(\d{4})/,        // DD-MM-YYYY
-    /(\d{2})_(\d{2})_(\d{4})/,        // DD_MM_YYYY
-    /(\d{8})/,                         // YYYYMMDD или DDMMYYYY
+    { regex: /(\d{4})-(\d{2})-(\d{2})/, format: 'YYYY-MM-DD' },     // YYYY-MM-DD
+    { regex: /(\d{4})\.(\d{2})\.(\d{2})/, format: 'YYYY.MM.DD' },   // YYYY.MM.DD
+    { regex: /(\d{4})_(\d{2})_(\d{2})/, format: 'YYYY_MM_DD' },     // YYYY_MM_DD
+    { regex: /(\d{2})\.(\d{2})\.(\d{4})/, format: 'DD.MM.YYYY' },   // DD.MM.YYYY
+    { regex: /(\d{2})-(\d{2})-(\d{4})/, format: 'DD-MM-YYYY' },     // DD-MM-YYYY
+    { regex: /(\d{2})_(\d{2})_(\d{4})/, format: 'DD_MM_YYYY' },     // DD_MM_YYYY
+    { regex: /(\d{8})/, format: 'YYYYMMDD' },                        // YYYYMMDD
   ];
 
-  for (const pattern of patterns) {
-    const match = filename.match(pattern);
+  for (const { regex, format } of patterns) {
+    const match = dateStr.match(regex);
     if (match) {
-      if (match[0].length === 8 && !match[1]) {
+      if (format === 'YYYYMMDD' && !match[1]) {
         // YYYYMMDD формат
-        const dateStr = match[0];
-        const year = dateStr.substring(0, 4);
-        const month = dateStr.substring(4, 6);
-        const day = dateStr.substring(6, 8);
-        return `${day}.${month}.${year}`;
-      } else if (match[3] && match[3].length === 4) {
-        // DD.MM.YYYY или DD-MM-YYYY формат
-        return `${match[1]}.${match[2]}.${match[3]}`;
-      } else if (match[1] && match[1].length === 4) {
-        // YYYY-MM-DD или YYYY.MM.DD формат
-        return `${match[3]}.${match[2]}.${match[1]}`;
+        const str = match[0];
+        const year = str.substring(0, 4);
+        const month = str.substring(4, 6);
+        const day = str.substring(6, 8);
+        return `${year}-${month}-${day}`;
+      } else if (format.startsWith('DD')) {
+        // DD.MM.YYYY, DD-MM-YYYY, DD_MM_YYYY форматы
+        return `${match[3]}-${match[2]}-${match[1]}`;
+      } else if (format.startsWith('YYYY')) {
+        // YYYY-MM-DD, YYYY.MM.DD, YYYY_MM_DD форматы
+        return `${match[1]}-${match[2]}-${match[3]}`;
       }
     }
   }
 
   return null;
+}
+
+/**
+ * Извлекает дату из имени файла архива
+ * @param {string} filename - Имя файла
+ * @returns {string|null} - Извлеченная дата в формате YYYY-MM-DD или null
+ */
+function extractDateFromFilename(filename) {
+  return normalizeDateToISO(filename);
 }
 
 /**
@@ -1176,9 +1185,35 @@ function renderSearchResults(response, message = null) {
     return "Результаты не найдены";
   }
 
-  const results = response.results;
-  const tabsId = `search-tabs-${Date.now()}`; // Уникальный ID для набора табов
-  const messageId = message ? message.id : '';
+  // Сортируем результаты по дате (по возрастанию)
+  const results = response.results.slice().sort((a, b) => {
+    const metadataA = a.metadata || {};
+    const metadataB = b.metadata || {};
+
+    // Получаем дату для первого результата
+    let dateA = normalizeDateToISO(metadataA.meeting_date);
+    if (!dateA && metadataA.archive_name) {
+      dateA = extractDateFromFilename(metadataA.archive_name);
+    }
+
+    // Получаем дату для второго результата
+    let dateB = normalizeDateToISO(metadataB.meeting_date);
+    if (!dateB && metadataB.archive_name) {
+      dateB = extractDateFromFilename(metadataB.archive_name);
+    }
+
+    // Если у обоих нет даты - оставляем исходный порядок
+    if (!dateA && !dateB) return 0;
+    // Результаты без даты помещаем в конец
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+
+    // Сравниваем даты (формат YYYY-MM-DD позволяет лексикографическое сравнение)
+    return dateA.localeCompare(dateB);
+  });
+
+  const messageId = message ? message.id : crypto.randomUUID();
+  const tabsId = `search-tabs-${messageId}`; // Уникальный ID для набора табов (используем messageId для уникальности)
   const savedStates = message && message.searchPanelStates ? message.searchPanelStates : {};
   const activeView = message && message.searchViewMode ? message.searchViewMode : 'analiz'; // По умолчанию analiz
   const answer = response.answer || '';
@@ -1216,6 +1251,8 @@ function renderSearchResults(response, message = null) {
   results.forEach((result, index) => {
     const relevance = result.relevance || {};
     const percent = relevance.percent || 0;
+    const metadata = result.metadata || {};
+    const stage = (metadata.stage || "").replace(/\\n/g, '\n');
 
     // Определяем класс релевантности для цветового кодирования
     let relevanceClass = "low";
@@ -1224,8 +1261,23 @@ function renderSearchResults(response, message = null) {
 
     const activeClass = index === 0 ? "active" : "";
 
+    // Проверяем наличие stage
+    const hasStage = stage && typeof stage === 'string' && stage.trim().length > 0;
+
+    // Определяем дату для отображения в табе (нормализуем к формату YYYY-MM-DD)
+    let displayDate = normalizeDateToISO(metadata.meeting_date);
+    if (!displayDate && metadata.archive_name) {
+      displayDate = extractDateFromFilename(metadata.archive_name);
+    }
+
     html += `<div class="search-tab ${activeClass} ${relevanceClass}" data-tab-index="${index}" onclick="window.switchSearchTab('${tabsId}', ${index})">`;
     html += `<span class="tab-number">#${index + 1}</span>`;
+    if (displayDate) {
+      html += `<span class="tab-date">${displayDate}</span>`;
+    }
+    if (hasStage) {
+      html += `<span class="tab-stage-indicator" title="Доступен Stage">🔷</span>`;
+    }
     html += `<span class="tab-relevance">${percent}%</span>`;
     html += `</div>`;
   });
@@ -1283,13 +1335,13 @@ function renderSearchResults(response, message = null) {
       html += `</div>`;
     }
 
-    // Дата: сначала пытаемся взять meeting_date, если пусто - извлекаем из имени архива
-    let displayDate = metadata.meeting_date;
-    if (!displayDate && metadata.archive_name) {
-      displayDate = extractDateFromFilename(metadata.archive_name);
+    // Дата: сначала пытаемся взять meeting_date, если пусто - извлекаем из имени архива (нормализуем к YYYY-MM-DD)
+    let panelDisplayDate = normalizeDateToISO(metadata.meeting_date);
+    if (!panelDisplayDate && metadata.archive_name) {
+      panelDisplayDate = extractDateFromFilename(metadata.archive_name);
     }
-    if (displayDate) {
-      html += `<div class="metadata-item"><strong>Дата:</strong> ${displayDate}</div>`;
+    if (panelDisplayDate) {
+      html += `<div class="metadata-item"><strong>Дата:</strong> ${panelDisplayDate}</div>`;
     }
     if (chunkInfo.chunk_index !== undefined && chunkInfo.total_chunks !== undefined) {
       html += `<div class="metadata-item"><strong>Фрагмент:</strong> ${chunkInfo.chunk_index + 1} из ${chunkInfo.total_chunks}</div>`;
