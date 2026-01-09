@@ -2,8 +2,9 @@
  * Действия пользователя (CRUD операции с чатами и сообщениями)
  */
 
-import { state, saveState, createChat, getActiveChat, dbSchema } from './state.js';
+import { state, saveState, createChat, getActiveChat, dbSchema, getWelcomeMessage } from './state.js';
 import { getChatStats, updateGlobalStats } from './stats.js';
+import { getModeConfig } from './config.js';
 
 export function deleteMessage(chatId, messageId, messagesEl, chatTitleEl, renderMessages, updateChatTitleWithStats) {
   const chat = state.chats.find(c => c.id === chatId);
@@ -73,8 +74,11 @@ export function newChat(promptInput, renderAll) {
 
 export function clearMessages(renderMessages, chatTitleEl, renderChatList) {
   const chat = getActiveChat();
+  const modeConfig = getModeConfig(chat.schema, chat.mode);
+  const welcomeMessage = getWelcomeMessage(modeConfig, chat.schema);
+
   chat.messages = [
-    { id: crypto.randomUUID(), role: "assistant", content: "Чат очищен. Напиши новое сообщение 👇" }
+    { id: crypto.randomUUID(), role: "assistant", content: welcomeMessage }
   ];
   saveState();
   renderMessages();

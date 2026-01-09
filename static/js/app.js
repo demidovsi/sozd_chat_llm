@@ -597,12 +597,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     toolsMenu.style.display = 'none';
     try {
       const version = await getApiVersion();
-      const versionWithUrl = {
-        ...version,
-        URL_api: config.URL,
-        URL_rest: config.URL_rest
-      };
-      alert(`Версия API:\n\n${JSON.stringify(versionWithUrl, null, 2)}`);
+      alert(`Версия API:\n\n${JSON.stringify(version, null, 2)}`);
     } catch (error) {
       alert(`Ошибка получения версии:\n${error.message}`);
     }
