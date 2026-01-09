@@ -48,7 +48,13 @@ export async function fetchSqlText(userText, { signal } = {}) {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`HTTP ${res.status}: ${text}`);
+      const errorDetails = `
+URL: ${url}
+Endpoint: sql/text
+Method: POST
+Status: ${res.status}
+Response: ${text}`;
+      throw new Error(`Ошибка запроса к URL_rest API:\n${errorDetails}`);
     }
 
     const json = await res.json();
@@ -64,12 +70,22 @@ export async function fetchSqlText(userText, { signal } = {}) {
     }
 
     return json;
-  } catch (error) {
+  } catch (err) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout after 90 seconds');
+    if (err.name === 'AbortError') {
+      throw err;
     }
-    throw error;
+    // Если ошибка уже содержит наши детали, пробрасываем как есть
+    if (err.message.includes('URL:') && err.message.includes('Endpoint:')) {
+      throw err;
+    }
+    // Для других ошибок (сетевые и т.д.) добавляем контекст
+    const errorContext = `
+URL: ${url}
+Endpoint: sql/text
+Method: POST
+Error: ${err.message}`;
+    throw new Error(`Ошибка при обращении к URL_rest API:\n${errorContext}`);
   }
 }
 
@@ -83,101 +99,216 @@ export async function executeSqlViaApi({ sqlText, params, token }, { signal } = 
     token: token ?? null
   };
 
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body),
-    signal
-  });
+  try {
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body),
+      signal
+    });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`EXECUTE HTTP ${res.status}: ${text}`);
+    if (!res.ok) {
+      const text = await res.text();
+      const errorDetails = `
+URL: ${url}
+Endpoint: v2/execute
+Method: PUT
+Status: ${res.status}
+Response: ${text}`;
+      throw new Error(`Ошибка запроса к URL API:\n${errorDetails}`);
+    }
+
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("application/json")) return await res.json();
+    return await res.text();
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw err;
+    }
+    // Если ошибка уже содержит наши детали, пробрасываем как есть
+    if (err.message.includes('URL:') && err.message.includes('Endpoint:')) {
+      throw err;
+    }
+    // Для других ошибок (сетевые и т.д.) добавляем контекст
+    const errorContext = `
+URL: ${url}
+Endpoint: v2/execute
+Method: PUT
+Error: ${err.message}`;
+    throw new Error(`Ошибка при обращении к URL API:\n${errorContext}`);
   }
-
-  const ct = res.headers.get("content-type") || "";
-  if (ct.includes("application/json")) return await res.json();
-  return await res.text();
 }
 
 export async function getApiVersion() {
   const url = config.URL_rest + "v1/version";
 
-  const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      "Accept": "application/json"
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      const errorDetails = `
+URL: ${url}
+Endpoint: v1/version
+Method: GET
+Status: ${res.status}
+Response: ${text}`;
+      throw new Error(`Ошибка запроса к URL_rest API:\n${errorDetails}`);
     }
-  });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`VERSION HTTP ${res.status}: ${text}`);
+    return await res.json();
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw err;
+    }
+    // Если ошибка уже содержит наши детали, пробрасываем как есть
+    if (err.message.includes('URL:') && err.message.includes('Endpoint:')) {
+      throw err;
+    }
+    // Для других ошибок (сетевые и т.д.) добавляем контекст
+    const errorContext = `
+URL: ${url}
+Endpoint: v1/version
+Method: GET
+Error: ${err.message}`;
+    throw new Error(`Ошибка при обращении к URL_rest API:\n${errorContext}`);
   }
-
-  return await res.json();
 }
 
 export async function clearApiCache() {
   const url = config.URL_rest + "v1/cache/clear";
 
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers: {
-      "Accept": "application/json"
+  try {
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      const errorDetails = `
+URL: ${url}
+Endpoint: v1/cache/clear
+Method: DELETE
+Status: ${res.status}
+Response: ${text}`;
+      throw new Error(`Ошибка запроса к URL_rest API:\n${errorDetails}`);
     }
-  });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`CACHE HTTP ${res.status}: ${text}`);
+    return await res.json();
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw err;
+    }
+    // Если ошибка уже содержит наши детали, пробрасываем как есть
+    if (err.message.includes('URL:') && err.message.includes('Endpoint:')) {
+      throw err;
+    }
+    // Для других ошибок (сетевые и т.д.) добавляем контекст
+    const errorContext = `
+URL: ${url}
+Endpoint: v1/cache/clear
+Method: DELETE
+Error: ${err.message}`;
+    throw new Error(`Ошибка при обращении к URL_rest API:\n${errorContext}`);
   }
-
-  return await res.json();
 }
 
 export async function clearSchemaCache(schema) {
   const url = config.URL_rest + `v1/cache/clear/schema/${schema}`;
 
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers: {
-      "Accept": "application/json"
+  try {
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      const errorDetails = `
+URL: ${url}
+Endpoint: v1/cache/clear/schema/${schema}
+Method: DELETE
+Status: ${res.status}
+Response: ${text}`;
+      throw new Error(`Ошибка запроса к URL_rest API:\n${errorDetails}`);
     }
-  });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`SCHEMA_CACHE HTTP ${res.status}: ${text}`);
+    return await res.json();
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw err;
+    }
+    // Если ошибка уже содержит наши детали, пробрасываем как есть
+    if (err.message.includes('URL:') && err.message.includes('Endpoint:')) {
+      throw err;
+    }
+    // Для других ошибок (сетевые и т.д.) добавляем контекст
+    const errorContext = `
+URL: ${url}
+Endpoint: v1/cache/clear/schema/${schema}
+Method: DELETE
+Error: ${err.message}`;
+    throw new Error(`Ошибка при обращении к URL_rest API:\n${errorContext}`);
   }
-
-  return await res.json();
 }
 
 export async function clearQueryCache(userConditions, schema) {
   const url = config.URL_rest + "v1/cache/clear/query";
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      user_conditions: userConditions,
-      db_schema: schema
-    })
-  });
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        user_conditions: userConditions,
+        db_schema: schema
+      })
+    });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`QUERY_CACHE HTTP ${res.status}: ${text}`);
+    if (!res.ok) {
+      const text = await res.text();
+      const errorDetails = `
+URL: ${url}
+Endpoint: v1/cache/clear/query
+Method: POST
+Status: ${res.status}
+Response: ${text}`;
+      throw new Error(`Ошибка запроса к URL_rest API:\n${errorDetails}`);
+    }
+
+    return await res.json();
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw err;
+    }
+    // Если ошибка уже содержит наши детали, пробрасываем как есть
+    if (err.message.includes('URL:') && err.message.includes('Endpoint:')) {
+      throw err;
+    }
+    // Для других ошибок (сетевые и т.д.) добавляем контекст
+    const errorContext = `
+URL: ${url}
+Endpoint: v1/cache/clear/query
+Method: POST
+Error: ${err.message}`;
+    throw new Error(`Ошибка при обращении к URL_rest API:\n${errorContext}`);
   }
-
-  return await res.json();
 }
 
 /**
@@ -203,7 +334,8 @@ export async function fetchQueryAnswer(userText, { signal } = {}) {
   const url = mode.url + mode.endpoint;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 90000);
+  // Увеличенный тайм-аут для custom API (5 минут)
+  const timeoutId = setTimeout(() => controller.abort(), 300000);
 
   if (signal) {
     signal.addEventListener('abort', () => controller.abort());
@@ -264,7 +396,14 @@ export async function fetchQueryAnswer(userText, { signal } = {}) {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`HTTP ${res.status}: ${text}`);
+      const errorDetails = `
+URL: ${requestUrl.toString()}
+Endpoint: ${mode.endpoint}
+Method: ${httpMethod}
+Mode: ${mode.id}
+Status: ${res.status}
+Response: ${text}`;
+      throw new Error(`Ошибка запроса к ${mode.id} API:\n${errorDetails}`);
     }
     
     const data = await res.json();
@@ -281,6 +420,17 @@ export async function fetchQueryAnswer(userText, { signal } = {}) {
     if (err.name === 'AbortError') {
       throw err;
     }
-    throw new Error(`Query failed: ${err.message}`);
+    // Если ошибка уже содержит наши детали, пробрасываем как есть
+    if (err.message.includes('URL:') && err.message.includes('Endpoint:')) {
+      throw err;
+    }
+    // Для других ошибок (сетевые и т.д.) добавляем контекст
+    const errorContext = `
+URL: ${requestUrl.toString()}
+Endpoint: ${mode.endpoint}
+Method: ${httpMethod}
+Mode: ${mode.id}
+Error: ${err.message}`;
+    throw new Error(`Ошибка при обращении к ${mode.id} API:\n${errorContext}`);
   }
 }

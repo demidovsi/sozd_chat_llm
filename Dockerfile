@@ -1,5 +1,5 @@
 # ✅ Используем минимальный Python-образ
-FROM python:3.9-slim AS builder
+FROM python:3.10-slim AS builder
 
 # ✅ Устанавливаем рабочую директорию
 WORKDIR /app

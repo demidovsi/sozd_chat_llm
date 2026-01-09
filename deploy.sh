@@ -6,6 +6,19 @@
 
 set -e  # Остановка при ошибке
 
+# Функция для восстановления config.js при выходе (даже при ошибке)
+cleanup() {
+  if [ -f "static/js/modules/config.js.backup" ]; then
+    echo ""
+    echo "Восстановление оригинального config.js..."
+    mv static/js/modules/config.js.backup static/js/modules/config.js
+    echo "✅ config.js восстановлен"
+  fi
+}
+
+# Регистрируем функцию очистки при выходе
+trap cleanup EXIT
+
 PROJECT_ID="playground-332710"
 IMAGE_NAME="${1:-sozd-chat-web}"  # Первый аргумент или значение по умолчанию
 REGION="${2:-europe-central2}"     # Второй аргумент или значение по умолчанию
@@ -31,8 +44,39 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 echo ""
-echo "Проверка URL_rest в config.js..."
-EXPECTED_URL_REST="https://159.223.0.234:5051/"
+echo "Проверка и замена URL в config.js..."
+
+# Проверяем наличие локальных URL (127.0.0.1 или localhost)
+if grep -q "127\.0\.0\.1\|localhost" static/js/modules/config.js; then
+  echo "⚠️  Обнаружены локальные URL (127.0.0.1 или localhost)"
+  echo "   Заменяем на продакшн URL (sergey-demidov.ru)..."
+
+  # Создаем резервную копию
+  cp static/js/modules/config.js static/js/modules/config.js.backup
+
+  # Заменяем все вхождения 127.0.0.1 и localhost на sergey-demidov.ru
+  # Используем разные подходы в зависимости от ОС
+  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+    # Windows (Git Bash)
+    sed -i "s|https\?://127\.0\.0\.1|https://sergey-demidov.ru|g" static/js/modules/config.js
+    sed -i "s|https\?://localhost|https://sergey-demidov.ru|g" static/js/modules/config.js
+  else
+    # Linux/Mac
+    sed -i 's|https\?://127\.0\.0\.1|https://sergey-demidov.ru|g' static/js/modules/config.js
+    sed -i 's|https\?://localhost|https://sergey-demidov.ru|g' static/js/modules/config.js
+  fi
+
+  echo "✅ URL заменены на продакшн версии"
+
+  # Показываем что изменилось
+  echo "Изменённые строки:"
+  grep -n "sergey-demidov.ru" static/js/modules/config.js | head -5
+else
+  echo "✅ Локальные URL не обнаружены"
+fi
+
+# Проверяем корректность основных URL
+EXPECTED_URL_REST="https://sergey-demidov.ru:5051/"
 CURRENT_URL_REST=$(grep -oP 'URL_rest:\s*"\K[^"]+' static/js/modules/config.js || echo "")
 
 if [ "$CURRENT_URL_REST" != "$EXPECTED_URL_REST" ]; then
@@ -44,6 +88,14 @@ if [ "$CURRENT_URL_REST" != "$EXPECTED_URL_REST" ]; then
   exit 1
 fi
 echo "✅ URL_rest корректен: $CURRENT_URL_REST"
+
+# Дополнительная проверка на наличие оставшихся локальных URL
+if grep -q "127\.0\.0\.1\|localhost" static/js/modules/config.js; then
+  echo "❌ ОШИБКА: В config.js остались локальные URL!"
+  echo "Не удалось заменить все вхождения 127.0.0.1 или localhost"
+  grep -n "127\.0\.0\.1\|localhost" static/js/modules/config.js
+  exit 1
+fi
 
 echo ""
 echo "1. Сборка Docker образа..."

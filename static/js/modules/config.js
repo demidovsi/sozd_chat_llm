@@ -4,8 +4,8 @@
 
 export const config = {
   kirill: "wqzDi8OVw43DjcOOwoTCncKZwpM=",
-  URL: "https://159.223.0.234:5001/",
-  URL_rest: "https://159.223.0.234:5051/",
+  URL: "https://sergey-demidov.ru:5001/",
+  URL_rest: "https://sergey-demidov.ru:5051/",
   GCS_BUCKET: "sozd-laws-file" // Имя корневого bucket в Google Cloud Storage
 };
 
@@ -39,7 +39,7 @@ export const SCHEMA_MODES = {
         id: "custom",
         label: "Custom",
         icon: "🤖",
-        url: "http://127.0.0.1:5000",
+        url: "https://sergey-demidov.ru:5071",
         endpoint: "/api/search",
         method: "POST",
         bucket: "sozd-transcripts", // GCS bucket для скачивания архивов
@@ -60,16 +60,6 @@ export const SCHEMA_MODES = {
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-//      custom: {
-//        id: "custom",
-//        label: "",
-//        icon: "🤖",
-//        url: "http://127.0.0.1:5000/",
-//        endpoint: "/api/search",
-//        method: "POST",
-//        bucket: null, // Нет bucket для этой схемы
-//        description: "Запросы к кастомному API с выбором схемы"
-//      }
     }
   },
   family: {
@@ -85,16 +75,6 @@ export const SCHEMA_MODES = {
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-//      custom: {
-//        id: "custom",
-//        label: "",
-//        icon: "🤖",
-//        url: "http://127.0.0.1:5000/",
-//        endpoint: "/api/search",
-//        method: "POST",
-//        bucket: null, // Нет bucket для этой схемы
-//        description: "Запросы к кастомному API с выбором схемы"
-//      }
     }
   },
   urban: {
@@ -110,16 +90,6 @@ export const SCHEMA_MODES = {
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-//      custom: {
-//        id: "custom",
-//        label: "",
-//        icon: "🤖",
-//        url: "http://127.0.0.1:5000/",
-//        endpoint: "/api/search",
-//        method: "POST",
-//        bucket: null, // Нет bucket для этой схемы
-//        description: "Запросы к кастомному API с выбором схемы"
-//      }
     }
   },
   eco: {
@@ -135,16 +105,6 @@ export const SCHEMA_MODES = {
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-//      custom: {
-//        id: "custom",
-//        label: "",
-//        icon: "🤖",
-//        url: "http://127.0.0.1:5000/",
-//        endpoint: "/api/search",
-//        method: "POST",
-//        bucket: null, // Нет bucket для этой схемы
-//        description: "Запросы к кастомному API с выбором схемы"
-//      }
     }
   },
   gen: {
@@ -160,16 +120,6 @@ export const SCHEMA_MODES = {
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-//      custom: {
-//        id: "custom",
-//        label: "",
-//        icon: "🤖",
-//        url: "http://127.0.0.1:5000/",
-//        endpoint: "/api/search",
-//        method: "POST",
-//        bucket: null, // Нет bucket для этой схемы
-//        description: "Запросы к кастомному API с выбором схемы"
-//      }
     }
   },
   ohi: {
@@ -185,16 +135,6 @@ export const SCHEMA_MODES = {
         method: "POST",
         description: "Генерация SQL запросов и работа с базой данных"
       },
-//      custom: {
-//        id: "custom",
-//        label: "",
-//        icon: "🤖",
-//        url: "http://127.0.0.1:5000/",
-//        endpoint: "/api/search",
-//        method: "POST",
-//        bucket: null, // Нет bucket для этой схемы
-//        description: "Запросы к кастомному API с выбором схемы"
-//      }
     }
   }
 };
@@ -249,35 +189,3 @@ export function getSchemaBucket(schemaValue) {
 export function getModeBucket(schemaValue, modeId) {
   return SCHEMA_MODES[schemaValue]?.modes?.[modeId]?.bucket || null;
 }
-
-// СТАРЫЕ СТРУКТУРЫ (закомментированы для обратной совместимости)
-// export const QUERY_MODES = {
-//   sql: {
-//     id: "sql",
-//     label: "",
-//     icon: "🗄️",
-//     url: config.URL_rest,
-//     endpoint: "",
-//     useSchemas: true,
-//     description: "Генерация SQL запросов и работа с базой данных"
-//   },
-//   custom: {
-//     id: "custom",
-//     label: "",
-//     icon: "🤖",
-//     url: "http://127.0.0.1:5000/",
-//     endpoint: "/api/search",
-//     useSchemas: true,
-//     description: "Запросы к кастомному API с выбором схемы"
-//   }
-// };
-
-// export const DB_SCHEMAS = [
-//   { value: "sozd", label: "СОЗД" },
-//   { value: "lib", label: "Гаазе" },
-//   { value: "family", label: "Семья" },
-//   { value: "urban", label: "Игра" },
-//   { value: "eco", label: "ГЕО-ЭКО" },
-//   { value: "gen", label: "ЕВГЕНИЯ" },
-//   { value: "ohi", label: "Наш дом Израиль" }
-// ];
