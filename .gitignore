@@ -10,4 +10,4 @@ __pycache__/
 .env
 .env.local
 .env.example
-auth.db
+# auth.db - теперь включается в репозиторий для деплоя
