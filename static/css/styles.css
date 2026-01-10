@@ -806,12 +806,13 @@
 
     .tbl-scroller {
       overflow: auto;
-      max-height: 500px; /* Увеличена высота для большего количества строк */
+      min-height: 100px; /* Минимальная высота */
+      max-height: 300px; /* Ограничение высоты для удобного просмотра */
       max-width: 100%; /* Полная ширина контейнера */
     }
 
     .tbl {
-      width: 100%;
+      width: 98%;
       border-collapse: collapse;
       font-size: 12px;
     }
