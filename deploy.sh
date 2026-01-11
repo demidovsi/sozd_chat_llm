@@ -116,14 +116,29 @@ else
 fi
 
 echo ""
-echo "4. Развертывание на Cloud Run..."
+echo "4. Загрузка ADMIN_TOKEN из .env..."
+if [ -f ".env" ]; then
+  # Извлекаем ADMIN_TOKEN из .env файла
+  ADMIN_TOKEN=$(grep '^ADMIN_TOKEN=' .env | cut -d '=' -f 2-)
+  if [ -z "$ADMIN_TOKEN" ]; then
+    echo "WARNING: ADMIN_TOKEN not found in .env file!"
+    exit 1
+  fi
+  echo "ADMIN_TOKEN loaded from .env"
+else
+  echo "WARNING: .env file not found!"
+  exit 1
+fi
+
+echo ""
+echo "5. Развертывание на Cloud Run..."
 gcloud run deploy ${IMAGE_NAME} \
   --image ${IMAGE_TAG} \
   --platform managed \
   --region ${REGION} \
   --allow-unauthenticated \
   --port ${PORT} \
-  --set-env-vars="GCS_CREDENTIALS_B64=${GCS_CREDS_B64}"
+  --set-env-vars="GCS_CREDENTIALS_B64=${GCS_CREDS_B64},ADMIN_TOKEN=${ADMIN_TOKEN}"
 
 echo ""
 echo "========================================="

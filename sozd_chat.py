@@ -405,8 +405,11 @@ VALUES (
             execute_url += '/'
         execute_url += 'v2/execute?need_answer=0'
 
-        # Используем тот же токен, что и в JavaScript (getEncodedAdminToken)
-        encoded_token = "w4bCi8KcwpPClsKOW1lawqfCtMOcw5vDi8OYw5FNWcKZwpXCuMOSw6DCi8KYwoxDwp7CsMKhwrTDm8OXw5zCjsKmQVtqYn_CmcKfwpnCncKZUm5YYX7Co8KnwpvCpsKgVltkUW3DnsOlw47DnsKOW1lawqTDgMOZw5fDm8ONw5DCjsKiwqZTw4g="
+        # Получаем токен из переменной окружения
+        encoded_token = os.environ.get('ADMIN_TOKEN')
+        if not encoded_token:
+            logger.error("ADMIN_TOKEN environment variable not set")
+            return jsonify({'success': False, 'message': 'ADMIN_TOKEN not configured'}), 500
 
         execute_payload = {
             "params": {

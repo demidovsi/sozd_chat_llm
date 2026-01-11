@@ -50,8 +50,23 @@ if exist gcs_credentials.json (
 )
 
 echo.
-echo 4. Развертывание на Cloud Run...
-gcloud run deploy %IMAGE_NAME% --image %IMAGE_TAG% --platform managed --region %REGION% --allow-unauthenticated --port %PORT% --set-env-vars="GCS_CREDENTIALS_B64=%GCS_CREDS_B64%"
+echo 4. Загрузка ADMIN_TOKEN из .env...
+if exist .env (
+    REM Извлекаем ADMIN_TOKEN из .env файла
+    for /f "tokens=2 delims==" %%i in ('findstr "^ADMIN_TOKEN=" .env') do set ADMIN_TOKEN=%%i
+    if not defined ADMIN_TOKEN (
+        echo WARNING: ADMIN_TOKEN not found in .env file!
+        goto error
+    )
+    echo ADMIN_TOKEN loaded from .env
+) else (
+    echo WARNING: .env file not found!
+    goto error
+)
+
+echo.
+echo 5. Развертывание на Cloud Run...
+gcloud run deploy %IMAGE_NAME% --image %IMAGE_TAG% --platform managed --region %REGION% --allow-unauthenticated --port %PORT% --set-env-vars="GCS_CREDENTIALS_B64=%GCS_CREDS_B64%,ADMIN_TOKEN=%ADMIN_TOKEN%"
 if errorlevel 1 goto error
 
 echo.
