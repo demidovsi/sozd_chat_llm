@@ -7,7 +7,7 @@ import { copyToClipboard, makeLinksOpenInNewTab, isArrayOfObjects, getColumnsFro
 import { escapeCell, toCsv, formatTimeForMeta, formatDurationMs, formatExecuteResult } from './formatters.js';
 import { buildSqlWithParams, renderMarkdownSafe, setOverlay, withUiBusy, setUiBusy, setOverlayText } from './ui.js';
 import { updateChatTitleWithStats } from './actions.js';
-import { fetchSqlText, executeSqlViaApi, fetchQueryAnswer, clearQueryCache } from './api.js';
+import { fetchSqlText, executeSqlViaApi, fetchQueryAnswer, clearQueryCache, logChatMessage } from './api.js';
 import { getEncodedAdminToken } from './crypto.js';
 import { MAX_TABLE_COLS, MAX_TABLE_CELL_LENGTH, getSchemaBucket, getModeBucket } from './config.js';
 import { ChartAnalyzer, ChartRenderer } from './chart.js';
@@ -1558,6 +1558,11 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
           assistantMsg.content += `\n\n📊 Данные подходят для визуализации. Доступные типы графиков: ${chartAnalysis.charts.map(c => c.label).join(', ')}.`;
         }
 
+        // Логируем успешный запрос с таблицей
+        // Общее время = время генерации SQL + время выполнения SQL
+        const totalDuration = (assistantMsg.restDurationMs || 0) + (assistantMsg.executeDurationMs || 0);
+        logChatMessage(userText, { sql: sqlText, params: params, table: { rows, columns } }, 'sql', dbSchema, totalDuration);
+
         // Скроллим на начало ответа ассистента
         scrollToAssistantMessage(assistantMsg.id);
         renderMessagesInternal();
@@ -1568,6 +1573,12 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
       // Во всех остальных случаях показываем как текстовый список
       const answerText = formatExecuteResult(executeResult);
       assistantMsg.content = answerText;
+
+      // Логируем успешный запрос с текстовым результатом
+      // Общее время = время генерации SQL + время выполнения SQL
+      const totalDurationText = (assistantMsg.restDurationMs || 0) + (assistantMsg.executeDurationMs || 0);
+      logChatMessage(userText, { sql: sqlText, params: params, result: executeResult }, 'sql', dbSchema, totalDurationText);
+
       // Скроллим на начало ответа ассистента
       scrollToAssistantMessage(assistantMsg.id);
       renderMessagesInternal();
@@ -1592,6 +1603,11 @@ export async function fakeStreamAnswer(userText, assistantMsg, userMsg, signal) 
       } else {
         assistantMsg.content = "✅ Запрос выполнен успешно";
       }
+
+      // Логируем успешный запрос для custom режима
+      // Для custom режима используем только restDurationMs
+      const customDuration = assistantMsg.restDurationMs || 0;
+      logChatMessage(userText, response, 'custom', dbSchema, customDuration);
 
       // Скроллим на начало ответа ассистента
       scrollToAssistantMessage(assistantMsg.id);

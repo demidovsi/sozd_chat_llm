@@ -434,3 +434,42 @@ Error: ${err.message}`;
     throw new Error(`Ошибка при обращении к ${mode.id} API:\n${errorContext}`);
   }
 }
+
+/**
+ * Отправляет лог запроса к чат-ассистенту в таблицу chat_logs
+ * @param {string} message - Текст запроса пользователя
+ * @param {Object|null} answer - Ответ ассистента (JSON объект)
+ * @param {string} typeMessage - Тип сообщения ('sql' или 'custom')
+ * @param {string} schema - Схема базы данных
+ * @param {number} durationMs - Время выполнения запроса в миллисекундах
+ * @returns {Promise<void>}
+ */
+export async function logChatMessage(message, answer, typeMessage, schema, durationMs) {
+  try {
+    const url = window.location.origin + '/api/log-chat';
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: message,
+        answer: answer,
+        type_message: typeMessage,
+        schema: schema,
+        duration_ms: durationMs
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(`Failed to log chat message: ${response.status} - ${errorText}`);
+    } else {
+      console.log('Chat message logged successfully');
+    }
+  } catch (err) {
+    // Не прерываем работу приложения из-за ошибки логирования
+    console.warn('Error logging chat message:', err);
+  }
+}

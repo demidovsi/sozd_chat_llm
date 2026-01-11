@@ -3,6 +3,7 @@ import json
 import os
 import logging
 import base64
+import requests
 
 from flask import Flask, jsonify, send_file, request, redirect, url_for, session
 from flask import render_template
@@ -312,6 +313,114 @@ def api_admin_activity():
         'success': True,
         'logs': logs
     })
+
+@app.route('/api/log-chat', methods=['POST'])
+@login_required
+def log_chat():
+    """
+    Логирование запроса к чат-ассистенту в таблицу chat_logs
+    Получает данные от фронтенда, определяет IP и геолокацию,
+    сохраняет запись через v2/execute endpoint
+    """
+    try:
+        data = request.get_json()
+
+        # Получаем параметры из запроса
+        message = data.get('message', '')
+        answer = data.get('answer')  # JSON объект
+        type_message = data.get('type_message', 'sql')
+        schema = data.get('schema', 'sozd')
+        duration_ms = data.get('duration_ms')  # Время выполнения в миллисекундах
+
+        # Преобразуем миллисекунды в секунды (float)
+        td = float(duration_ms) / 1000.0 if duration_ms is not None else None
+
+        # Получаем IP адрес клиента
+        client_ip = request.remote_addr
+
+        # Получаем геолокацию через ip-api.com
+        country = None
+        city = None
+
+        try:
+            geo_response = requests.get(f'http://ip-api.com/json/{client_ip}', timeout=5)
+            if geo_response.status_code == 200:
+                geo_data = geo_response.json()
+                if geo_data.get('status') == 'success':
+                    country = geo_data.get('country')
+                    city = geo_data.get('city')
+                    logger.info(f"Geolocation for {client_ip}: {country}, {city}")
+                else:
+                    logger.warning(f"Geolocation API returned status: {geo_data.get('status')}")
+        except Exception as geo_err:
+            logger.warning(f"Failed to get geolocation for {client_ip}: {geo_err}")
+
+        # Текущее время в UTC+0
+        current_time = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+
+        # Формируем SQL INSERT запрос
+        # answer сохраняется как JSON
+        answer_json = json.dumps(answer) if answer is not None else 'null'
+
+        # Экранируем одинарные кавычки для SQL
+        message_escaped = message.replace("'", "''") if message else ''
+        country_escaped = country.replace("'", "''") if country else None
+        city_escaped = city.replace("'", "''") if city else None
+
+        # Формируем INSERT запрос
+        insert_sql = f"""
+INSERT INTO {schema}.chat_logs (at_date_time, ip, country, city, type_message, message, answer, td)
+VALUES (
+    '{current_time}',
+    '{client_ip}',
+    {'NULL' if country_escaped is None else f"'{country_escaped}'"},
+    {'NULL' if city_escaped is None else f"'{city_escaped}'"},
+    '{type_message}',
+    '{message_escaped}',
+    '{answer_json}'::json,
+    {td if td is not None else 'NULL'}
+)
+"""
+
+        logger.info(f"Logging chat message to {schema}.chat_logs: type={type_message}, ip={client_ip}")
+
+        # Отправляем INSERT запрос через v2/execute
+        # Используем config.URL для endpoint v2/execute
+        execute_url = os.environ.get('URL') or 'https://sergey-demidov.ru:5001/'
+        if not execute_url.endswith('/'):
+            execute_url += '/'
+        execute_url += 'v2/execute?need_answer=0'
+
+        # Используем тот же токен, что и в JavaScript (getEncodedAdminToken)
+        encoded_token = "w4bCi8KcwpPClsKOW1lawqfCtMOcw5vDi8OYw5FNWcKZwpXCuMOSw6DCi8KYwoxDwp7CsMKhwrTDm8OXw5zCjsKmQVtqYn_CmcKfwpnCncKZUm5YYX7Co8KnwpvCpsKgVltkUW3DnsOlw47DnsKOW1lawqTDgMOZw5fDm8ONw5DCjsKiwqZTw4g="
+
+        execute_payload = {
+            "params": {
+                "script": insert_sql,
+                "datas": None
+            },
+            "token": encoded_token
+        }
+
+        execute_response = requests.put(
+            execute_url,
+            json=execute_payload,
+            timeout=10
+        )
+
+        if execute_response.status_code == 200:
+            logger.info(f"Chat log saved successfully to {schema}.chat_logs")
+            return jsonify({'success': True, 'message': 'Chat log saved'})
+        else:
+            logger.error(f"Failed to save chat log: {execute_response.status_code} - {execute_response.text}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to save chat log: {execute_response.status_code}'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error in log_chat: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/version')
 def get_version():
