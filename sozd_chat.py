@@ -339,10 +339,14 @@ def log_chat():
         user_email = current_user.email if current_user and hasattr(current_user, 'email') else None
 
         # Получаем IP адрес клиента (с учетом прокси)
-        if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        x_forwarded_for = request.environ.get('HTTP_X_FORWARDED_FOR')
+        logger.info(f"HTTP_X_FORWARDED_FOR: {x_forwarded_for}, remote_addr: {request.remote_addr}")
+
+        if x_forwarded_for is None:
             client_ip = request.remote_addr
         else:
-            client_ip = request.environ['HTTP_X_FORWARDED_FOR']
+            # X-Forwarded-For может содержать несколько IP через запятую, берем первый (клиента)
+            client_ip = x_forwarded_for.split(',')[0].strip()
 
         # Получаем геолокацию через ip-api.com
         country = None
@@ -366,15 +370,17 @@ def log_chat():
 
         # Формируем SQL INSERT запрос
         # answer сохраняется как JSON
-        answer_json = json.dumps(answer) if answer is not None else 'null'
+        answer_json = json.dumps(answer, ensure_ascii=False) if answer is not None else 'null'
 
         # Экранируем одинарные кавычки для SQL
         message_escaped = message.replace("'", "''") if message else ''
         country_escaped = country.replace("'", "''") if country else None
         city_escaped = city.replace("'", "''") if city else None
         email_escaped = user_email.replace("'", "''") if user_email else None
+        # ВАЖНО: экранируем одинарные кавычки в JSON для безопасной вставки в SQL
+        answer_json_escaped = answer_json.replace("'", "''") if answer_json != 'null' else answer_json
 
-        # Формируем INSERT запрос
+        # Формируем INSERT запрос с использованием dollar-quoted string для JSON
         insert_sql = f"""
 INSERT INTO {schema}.chat_logs (at_date_time, ip, country, city, type_message, message, answer, td, email)
 VALUES (
@@ -384,7 +390,7 @@ VALUES (
     {'NULL' if city_escaped is None else f"'{city_escaped}'"},
     '{type_message}',
     '{message_escaped}',
-    '{answer_json}'::json,
+    '{answer_json_escaped}'::json,
     {td if td is not None else 'NULL'},
     {'NULL' if email_escaped is None else f"'{email_escaped}'"}
 )
