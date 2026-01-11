@@ -335,8 +335,14 @@ def log_chat():
         # Преобразуем миллисекунды в секунды (float)
         td = float(duration_ms) / 1000.0 if duration_ms is not None else None
 
-        # Получаем IP адрес клиента
-        client_ip = request.remote_addr
+        # Получаем email текущего пользователя
+        user_email = current_user.email if current_user and hasattr(current_user, 'email') else None
+
+        # Получаем IP адрес клиента (с учетом прокси)
+        if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+            client_ip = request.remote_addr
+        else:
+            client_ip = request.environ['HTTP_X_FORWARDED_FOR']
 
         # Получаем геолокацию через ip-api.com
         country = None
@@ -366,10 +372,11 @@ def log_chat():
         message_escaped = message.replace("'", "''") if message else ''
         country_escaped = country.replace("'", "''") if country else None
         city_escaped = city.replace("'", "''") if city else None
+        email_escaped = user_email.replace("'", "''") if user_email else None
 
         # Формируем INSERT запрос
         insert_sql = f"""
-INSERT INTO {schema}.chat_logs (at_date_time, ip, country, city, type_message, message, answer, td)
+INSERT INTO {schema}.chat_logs (at_date_time, ip, country, city, type_message, message, answer, td, email)
 VALUES (
     '{current_time}',
     '{client_ip}',
@@ -378,7 +385,8 @@ VALUES (
     '{type_message}',
     '{message_escaped}',
     '{answer_json}'::json,
-    {td if td is not None else 'NULL'}
+    {td if td is not None else 'NULL'},
+    {'NULL' if email_escaped is None else f"'{email_escaped}'"}
 )
 """
 
