@@ -340,7 +340,8 @@ def log_chat():
         user_email = current_user.email if current_user and hasattr(current_user, 'email') else None
 
         # Получаем информацию о браузере из User-Agent
-        user_agent_string = request.headers.get('User-Agent', '').lower()
+        user_agent_original = request.headers.get('User-Agent', '')
+        user_agent_string = user_agent_original.lower()
 
         # Определяем браузер по User-Agent string
         # ВАЖНО: Chromium-based браузеры проверяем ПЕРЕД Chrome!
@@ -348,12 +349,15 @@ def log_chat():
             browser = 'Edge'
         elif 'opr/' in user_agent_string or 'opera/' in user_agent_string:
             browser = 'Opera'
-        elif 'vivaldi/' in user_agent_string or 'vivaldi' in user_agent_string:
+        elif 'vivaldi' in user_agent_string:
             browser = 'Vivaldi'
         elif 'yabrowser/' in user_agent_string or 'yandex' in user_agent_string:
             browser = 'Yandex'
-        elif 'arc/' in user_agent_string:
+        elif 'arc' in user_agent_string and 'safari' in user_agent_string:
+            # Arc Browser на macOS содержит "Safari" и обычно "Arc" в конце
             browser = 'Arc'
+        elif 'brave' in user_agent_string:
+            browser = 'Brave'
         elif 'firefox/' in user_agent_string:
             browser = 'Firefox'
         elif 'safari/' in user_agent_string and 'chrome/' not in user_agent_string:
@@ -365,7 +369,7 @@ def log_chat():
         else:
             browser = 'Unknown'
 
-        logger.info(f"User-Agent: {request.headers.get('User-Agent', 'N/A')}, Detected browser: {browser}")
+        logger.info(f"User-Agent: {user_agent_original}, Detected browser: {browser}")
 
         # Получаем IP адрес клиента (с учетом прокси)
         x_forwarded_for = request.environ.get('HTTP_X_FORWARDED_FOR')
