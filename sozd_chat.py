@@ -340,7 +340,25 @@ def log_chat():
         user_email = current_user.email if current_user and hasattr(current_user, 'email') else None
 
         # Получаем информацию о браузере из User-Agent
-        browser = request.user_agent.browser or 'Unknown'
+        user_agent_string = request.headers.get('User-Agent', '').lower()
+
+        # Определяем браузер по User-Agent string
+        if 'edg/' in user_agent_string or 'edge/' in user_agent_string:
+            browser = 'Edge'
+        elif 'chrome/' in user_agent_string and 'edg/' not in user_agent_string:
+            browser = 'Chrome'
+        elif 'firefox/' in user_agent_string:
+            browser = 'Firefox'
+        elif 'safari/' in user_agent_string and 'chrome/' not in user_agent_string:
+            browser = 'Safari'
+        elif 'opera/' in user_agent_string or 'opr/' in user_agent_string:
+            browser = 'Opera'
+        elif 'trident/' in user_agent_string or 'msie ' in user_agent_string:
+            browser = 'IE'
+        else:
+            browser = 'Unknown'
+
+        logger.info(f"User-Agent: {request.headers.get('User-Agent', 'N/A')}, Detected browser: {browser}")
 
         # Получаем IP адрес клиента (с учетом прокси)
         x_forwarded_for = request.environ.get('HTTP_X_FORWARDED_FOR')
