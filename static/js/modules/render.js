@@ -993,7 +993,8 @@ function renderMessagesInternal() {
     messagesContainer.scrollTop = savedScrollTop;
   } else {
     // По умолчанию — скроллим в конец (для новых сообщений)
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    // Добавляем небольшой отступ, чтобы был виден горизонтальный scrollbar таблицы
+    messagesContainer.scrollTop = messagesContainer.scrollHeight + 50;
   }
 
   // ⭐ после рендера — выравниваем кнопки по верхней видимой строке
