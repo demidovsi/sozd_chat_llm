@@ -343,16 +343,23 @@ def log_chat():
         user_agent_string = request.headers.get('User-Agent', '').lower()
 
         # Определяем браузер по User-Agent string
+        # ВАЖНО: Chromium-based браузеры проверяем ПЕРЕД Chrome!
         if 'edg/' in user_agent_string or 'edge/' in user_agent_string:
             browser = 'Edge'
-        elif 'chrome/' in user_agent_string and 'edg/' not in user_agent_string:
-            browser = 'Chrome'
+        elif 'opr/' in user_agent_string or 'opera/' in user_agent_string:
+            browser = 'Opera'
+        elif 'vivaldi/' in user_agent_string or 'vivaldi' in user_agent_string:
+            browser = 'Vivaldi'
+        elif 'yabrowser/' in user_agent_string or 'yandex' in user_agent_string:
+            browser = 'Yandex'
+        elif 'arc/' in user_agent_string:
+            browser = 'Arc'
         elif 'firefox/' in user_agent_string:
             browser = 'Firefox'
         elif 'safari/' in user_agent_string and 'chrome/' not in user_agent_string:
             browser = 'Safari'
-        elif 'opera/' in user_agent_string or 'opr/' in user_agent_string:
-            browser = 'Opera'
+        elif 'chrome/' in user_agent_string:
+            browser = 'Chrome'
         elif 'trident/' in user_agent_string or 'msie ' in user_agent_string:
             browser = 'IE'
         else:
