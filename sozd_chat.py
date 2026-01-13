@@ -339,6 +339,9 @@ def log_chat():
         # Получаем email текущего пользователя
         user_email = current_user.email if current_user and hasattr(current_user, 'email') else None
 
+        # Получаем информацию о браузере из User-Agent
+        browser = request.user_agent.browser or 'Unknown'
+
         # Получаем IP адрес клиента (с учетом прокси)
         x_forwarded_for = request.environ.get('HTTP_X_FORWARDED_FOR')
         logger.info(f"HTTP_X_FORWARDED_FOR: {x_forwarded_for}, remote_addr: {request.remote_addr}")
@@ -378,12 +381,13 @@ def log_chat():
         country_escaped = country.replace("'", "''") if country else None
         city_escaped = city.replace("'", "''") if city else None
         email_escaped = user_email.replace("'", "''") if user_email else None
+        browser_escaped = browser.replace("'", "''") if browser else 'Unknown'
         # ВАЖНО: экранируем одинарные кавычки в JSON для безопасной вставки в SQL
         answer_json_escaped = answer_json.replace("'", "''") if answer_json != 'null' else answer_json
 
         # Формируем INSERT запрос с использованием dollar-quoted string для JSON
         insert_sql = f"""
-INSERT INTO {schema}.chat_logs (at_date_time, ip, country, city, type_message, message, answer, td, email)
+INSERT INTO {schema}.chat_logs (at_date_time, ip, country, city, type_message, message, answer, td, email, browser)
 VALUES (
     '{current_time}',
     '{client_ip}',
@@ -393,7 +397,8 @@ VALUES (
     '{message_escaped}',
     '{answer_json_escaped}'::json,
     {td if td is not None else 'NULL'},
-    {'NULL' if email_escaped is None else f"'{email_escaped}'"}
+    {'NULL' if email_escaped is None else f"'{email_escaped}'"},
+    '{browser_escaped}'
 )
 """
 
