@@ -6,6 +6,7 @@ import { el, normalizeUserMessage, downloadFromGCS } from './modules/utils.js';
 import { state, setState, loadState, saveState, getActiveChat, setCurrentAbortController, setIsGenerating, setLastUserMessageCache, currentAbortController, isGenerating, lastUserMessageCache, dbSchema, setDbSchema, createChat, queryMode, setQueryMode, getCurrentMode } from './modules/state.js';
 import { initTheme } from './modules/theme.js';
 import { renderAll, renderChatList, renderMessages, fakeStreamAnswer, setElements } from './modules/render.js';
+import { debounce } from './modules/utils.js';
 import { newChat, clearMessages, exportJSON, toggleAllMessages, updateToggleAllButton, getLastUserMessage } from './modules/actions.js';
 import { setGenerating, setOverlay, autoGrow, canSendOnEnter, withUiBusy, setOverlayText } from './modules/ui.js';
 import { VoiceInput } from './modules/voice.js';
@@ -574,7 +575,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   newChatBtn?.addEventListener("click", () => newChat(promptInput, renderAll));
   clearBtn?.addEventListener("click", () => clearMessages(renderMessages, chatTitleEl, renderChatList));
   exportBtn?.addEventListener("click", exportJSON);
-  searchInputEl?.addEventListener("input", renderChatList);
+  // Debounce поиска чатов (300ms) для уменьшения нагрузки при вводе
+  searchInputEl?.addEventListener("input", debounce(renderChatList, 300));
   toggleAllBtn?.addEventListener("click", () => toggleAllMessages(toggleAllBtn, renderMessages));
 
   /** ---------- Tools menu ---------- **/

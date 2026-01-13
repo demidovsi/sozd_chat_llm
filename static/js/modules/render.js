@@ -421,6 +421,9 @@ export function renderChatList() {
  * Используется для внутренних вызовов, где блокировка не нужна
  */
 function renderMessagesInternal() {
+  // Временное логирование для отладки производительности
+  const perfStart = performance.now();
+
   const messagesContainer = document.querySelector('.messages');
   if (!messagesContainer) return;
 
@@ -1004,6 +1007,13 @@ function renderMessagesInternal() {
     // Асинхронная подсветка синтаксиса (порциями, чтобы не блокировать UI)
     if (codeBlocksToHighlight.length > 0) {
       highlightCodeBlocksAsync(codeBlocksToHighlight);
+    }
+
+    // Логирование производительности
+    const perfEnd = performance.now();
+    const renderTime = perfEnd - perfStart;
+    if (renderTime > 100) {
+      console.warn(`[Performance] renderMessagesInternal took ${renderTime.toFixed(2)}ms for ${currentChat.messages.length} messages`);
     }
   });
 }

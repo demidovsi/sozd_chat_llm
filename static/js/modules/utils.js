@@ -15,6 +15,24 @@ export function sleep(ms) {
   return new Promise(res => setTimeout(res, ms));
 }
 
+/**
+ * Debounce функция - откладывает выполнение функции до момента, когда перестанут поступать вызовы
+ * @param {Function} func - Функция для выполнения
+ * @param {number} wait - Задержка в миллисекундах
+ * @returns {Function} - Debounced функция
+ */
+export function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 export function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
