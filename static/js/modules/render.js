@@ -59,6 +59,139 @@ function saveScrollPosition() {
 // ============================================================================
 
 /**
+ * Порог для виртуализации таблиц (количество строк)
+ * ВРЕМЕННО ОТКЛЮЧЕНА - увеличен порог до очень большого значения
+ * TODO: Исправить логику виртуализации (padding-top вместо minHeight)
+ */
+const TABLE_VIRTUALIZATION_THRESHOLD = 10000; // Фактически отключена
+const VIRTUAL_TABLE_BUFFER = 10; // Количество строк до/после видимой области
+
+/**
+ * Создает виртуализированную таблицу для больших данных
+ * @param {HTMLElement} tblScroller - Контейнер для таблицы
+ * @param {Array} rows - Данные таблицы
+ * @param {Array} columns - Названия колонок
+ * @param {Set} numericColumns - Множество числовых колонок
+ * @param {Set} urlColumns - Множество URL колонок
+ * @param {Map} columnWidths - Ширины колонок
+ */
+function renderVirtualizedTable(tblScroller, rows, columns, numericColumns, urlColumns, columnWidths) {
+  const table = document.createElement('table');
+  table.className = 'tbl';
+
+  // Создаем заголовок таблицы
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  for (const col of columns) {
+    const th = document.createElement('th');
+    th.textContent = col;
+    if (numericColumns.has(col)) {
+      th.classList.add('numeric-col');
+    } else if (columnWidths.has(col)) {
+      th.style.width = columnWidths.get(col) + '%';
+    }
+    if (urlColumns.has(col)) {
+      th.style.minWidth = '200px';
+    }
+    headerRow.appendChild(th);
+  }
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  // Создаем tbody с виртуализацией
+  const tbody = document.createElement('tbody');
+
+  // Состояние виртуализации
+  let visibleStart = 0;
+  let visibleEnd = Math.min(TABLE_VIRTUALIZATION_THRESHOLD, rows.length);
+
+  // Функция рендеринга видимых строк
+  const renderVisibleRows = () => {
+    const fragment = document.createDocumentFragment();
+
+    for (let i = visibleStart; i < visibleEnd; i++) {
+      const row = rows[i];
+      const tr = document.createElement('tr');
+      tr.dataset.rowIndex = i;
+
+      for (const col of columns) {
+        const td = document.createElement('td');
+
+        if (numericColumns.has(col)) {
+          td.classList.add('numeric-col');
+        }
+        if (urlColumns.has(col)) {
+          td.style.minWidth = '200px';
+        }
+
+        const cellValue = row[col];
+        const cellStr = cellValue != null ? String(cellValue) : '';
+
+        // Упрощенная логика для виртуализированных ячеек
+        if (cellStr.includes('\n')) {
+          const textarea = document.createElement('textarea');
+          textarea.className = 'table-cell-textarea';
+          textarea.value = cellStr;
+          textarea.readOnly = true;
+
+          requestAnimationFrame(() => {
+            textarea.style.height = 'auto';
+            textarea.style.height = (textarea.scrollHeight + 4) + 'px';
+          });
+
+          td.appendChild(textarea);
+        } else {
+          td.innerHTML = escapeCell(undefined, col, row);
+        }
+
+        tr.appendChild(td);
+      }
+      fragment.appendChild(tr);
+    }
+
+    tbody.innerHTML = '';
+    tbody.appendChild(fragment);
+  };
+
+  // Обработчик скролла для подгрузки строк
+  const handleScroll = () => {
+    const scrollTop = tblScroller.scrollTop;
+    const rowHeight = 35; // Примерная высота строки
+    const containerHeight = tblScroller.clientHeight;
+
+    const newStart = Math.max(0, Math.floor(scrollTop / rowHeight) - VIRTUAL_TABLE_BUFFER);
+    const newEnd = Math.min(rows.length, Math.ceil((scrollTop + containerHeight) / rowHeight) + VIRTUAL_TABLE_BUFFER);
+
+    // Обновляем только если изменилась видимая область
+    if (newStart !== visibleStart || newEnd !== visibleEnd) {
+      visibleStart = newStart;
+      visibleEnd = newEnd;
+      renderVisibleRows();
+    }
+  };
+
+  // Устанавливаем высоту tbody для корректного скролла
+  const estimatedHeight = rows.length * 35; // 35px на строку
+  tbody.style.minHeight = estimatedHeight + 'px';
+
+  // Добавляем обработчик скролла с throttle
+  let scrollTimeout;
+  tblScroller.addEventListener('scroll', () => {
+    if (scrollTimeout) return;
+    scrollTimeout = setTimeout(() => {
+      handleScroll();
+      scrollTimeout = null;
+    }, 16); // ~60fps
+  });
+
+  table.appendChild(tbody);
+  tblScroller.appendChild(table);
+
+  // Рендерим начальные строки
+  renderVisibleRows();
+}
+
+/**
  * Асинхронная подсветка блоков кода порциями
  * Использует requestIdleCallback для выполнения подсветки во время простоя браузера
  * @param {Array<HTMLElement>} codeBlocks - массив элементов code для подсветки
@@ -420,9 +553,22 @@ export function renderChatList() {
  * Внутренняя функция рендеринга сообщений (без UI блокировки)
  * Используется для внутренних вызовов, где блокировка не нужна
  */
+let lastRenderTime = 0;
+const RENDER_THROTTLE = 100; // минимальная задержка между рендерами (мс)
+
 function renderMessagesInternal() {
+  // Throttle: пропускаем рендер если прошло меньше 100ms с предыдущего
+  const now = performance.now();
+  if (now - lastRenderTime < RENDER_THROTTLE) {
+    console.warn('[Performance] Render throttled - too soon after previous render');
+    return;
+  }
+  lastRenderTime = now;
+
   // Временное логирование для отладки производительности
   const perfStart = performance.now();
+  console.log('[Performance] renderMessagesInternal started');
+  console.trace('[Performance] Render call stack');
 
   const messagesContainer = document.querySelector('.messages');
   if (!messagesContainer) return;
@@ -558,11 +704,10 @@ function renderMessagesInternal() {
       collapsedPlaceholder.textContent = '[Сообщение свернуто]';
     }
 
-    // ⭐ ОПТИМИЗАЦИЯ: Не рендерим тяжелый контент для свернутых сообщений
-    const shouldRenderContent = !m.collapsed;
-
     // Текстовое содержимое
-    if (m.content && shouldRenderContent) {
+    // ВАЖНО: Контент создается всегда, даже для свернутых сообщений,
+    // чтобы при раскрытии он корректно отображался
+    if (m.content) {
       const content = document.createElement('div');
       content.className = 'content';
       // Если это результаты поиска, регенерируем HTML с актуальными состояниями панелей
@@ -596,7 +741,7 @@ function renderMessagesInternal() {
     }
 
     // SQL блок
-    if (m.sql && shouldRenderContent) {
+    if (m.sql) {
       const sqlWrap = document.createElement('div');
       sqlWrap.className = 'sql-wrap';
       if (m.error) sqlWrap.classList.add('error');
@@ -652,7 +797,7 @@ function renderMessagesInternal() {
     }
 
     // Таблица
-    if (m.table && m.table.rows && m.table.rows.length > 0 && shouldRenderContent) {
+    if (m.table && m.table.rows && m.table.rows.length > 0) {
       const { columns, rows } = m.table;
 
       const tableInfo = document.createElement('div');
@@ -750,7 +895,62 @@ function renderMessagesInternal() {
         });
       }
 
-      const thead = document.createElement('thead');
+      // ⭐ ОПТИМИЗАЦИЯ: Используем виртуализацию для больших таблиц
+      if (rows.length > TABLE_VIRTUALIZATION_THRESHOLD) {
+        console.log(`[Performance] Using virtualized table rendering for ${rows.length} rows`);
+        renderVirtualizedTable(tblScroller, rows, columns, numericColumns, urlColumns, columnWidths);
+        tblWrap.appendChild(tblHead);
+        tblWrap.appendChild(tblScroller);
+        collapsibleContent.appendChild(tblWrap);
+
+        const csvBtn = tblHead.querySelector('.sql-btn');
+        csvBtn.onclick = () => {
+          setUiBusy(true);
+          setTimeout(() => {
+            try {
+              const csv = toCsv(rows, columns);
+              const chat = getActiveChat();
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+              const filename = `${chat.title.slice(0, 30)}_${timestamp}.csv`;
+              downloadTextFile(filename, csv, "text/csv;charset=utf-8");
+            } finally {
+              setUiBusy(false);
+            }
+          }, 50);
+        };
+
+        // Кнопка построения графика для виртуализированных таблиц
+        if (m.chartAnalysis && m.chartAnalysis.suitable) {
+          const chartBtn = document.createElement('button');
+          chartBtn.className = 'sql-btn btn-chart';
+          chartBtn.textContent = '📊 График';
+          chartBtn.title = 'Построить график';
+          chartBtn.onclick = (e) => {
+            e.stopPropagation();
+            showChartModal(m);
+          };
+          csvBtn.insertAdjacentElement('beforebegin', chartBtn);
+        }
+
+        // Обработчик для кнопок скачивания файлов из GCS (виртуализированные таблицы)
+        const currentBucket = getSchemaBucket(dbSchema);
+        const downloadBtns = tblWrap.querySelectorAll('.download-btn');
+
+        if (!currentBucket) {
+          downloadBtns.forEach(btn => btn.remove());
+        } else {
+          downloadBtns.forEach(btn => {
+            btn.onclick = () => {
+              const filename = btn.getAttribute('data-filename');
+              if (filename) {
+                downloadFromGCS(currentBucket, filename);
+              }
+            };
+          });
+        }
+      } else {
+        // Обычный рендеринг для небольших таблиц
+        const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
       for (const col of columns) {
         const th = document.createElement('th');
@@ -915,6 +1115,7 @@ function renderMessagesInternal() {
           };
         });
       }
+      } // конец else для обычного рендеринга таблиц
     }
 
     // Добавляем placeholder если сообщение свернуто

@@ -70,14 +70,35 @@ export function withUiBusy(fn) {
   };
 }
 
+// Кэш для мемоизации результатов парсинга Markdown
+const markdownCache = new Map();
+const MAX_CACHE_SIZE = 100; // Ограничиваем размер кэша
+
 export function renderMarkdownSafe(text) {
+  // Проверяем кэш
+  if (markdownCache.has(text)) {
+    return markdownCache.get(text);
+  }
+
+  let result;
   if (window.marked) {
     marked.setOptions({ breaks: true, gfm: true, headerIds: false, mangle: false });
-    return marked.parse(text, { sanitize: false, headerIds: false, mangle: false });
+    result = marked.parse(text, { sanitize: false, headerIds: false, mangle: false });
+  } else {
+    const div = document.createElement('div');
+    div.textContent = text;
+    result = div.innerHTML.replace(/\n/g, "<br/>");
   }
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML.replace(/\n/g, "<br/>");
+
+  // Сохраняем в кэш с ограничением размера (LRU подход)
+  if (markdownCache.size >= MAX_CACHE_SIZE) {
+    // Удаляем первый (самый старый) элемент
+    const firstKey = markdownCache.keys().next().value;
+    markdownCache.delete(firstKey);
+  }
+  markdownCache.set(text, result);
+
+  return result;
 }
 
 export function autoGrow(textarea) {
