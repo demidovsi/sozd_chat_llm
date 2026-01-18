@@ -39,7 +39,8 @@ export const SCHEMA_MODES = {
         id: "custom",
         label: "Custom",
         icon: "🤖",
-        url: "https://sergey-demidov.ru:5071",
+        _url: "https://sergey-demidov.ru:5071",
+        url: "http:/127.0.0.1:5070",
         endpoint: "/api/search",
         method: "POST",
         bucket: "sozd-transcripts", // GCS bucket для скачивания архивов
